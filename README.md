@@ -13,6 +13,15 @@ The art style is carried over from Valsera, a 2D game drawn the same way, from b
 | ![Hearthmere](docs/title.jpg) | ![Night: light is paper](docs/night.jpg) |
 | ![The beasts](docs/zoo.jpg) | ![Other countries](docs/biomes.jpg) |
 
+## What there is to do
+
+- **Fights you have to move in.** Every creature has a move of its own, and it is drawn on the ground before it lands: Sproutlings leap, Puffcaps leave a cloud of spores, Bristlehogs charge down a lane (and stand winded if they miss), Wisps keep their distance and throw motes, Craglings slam the ground, Shellsnaps tuck into their shells, where blows glance off, and snap out. Step out of the mark and it misses.
+- **Things to find.** Away from the roads there are caches to open, rings of standing stones that lend a boon for four minutes (hit harder, run faster or more health), and beacons that mark the places around them on the map. A shrine is a waystone: once reached, you can travel back to it from any other.
+- **A choice at every level.** A level gives three attribute points and one talent picked from three, out of thirteen. Some change a skill (Ember Bolt throws two motes, Gale Step cuts what it passes through), some change you. What creatures drop can be made into flasks and charms at a trader.
+- **Work from the warden.** Bounties come in four kinds: cull a number of creatures, bring back what they drop, find a place and report back, or slay the elder living in a ruin. The Long Walk is an errand that never ends: every new country you set foot in pays experience, and the 4th, 8th and 13th pay a talent.
+- **Night and falling.** After dark, creatures notice you from farther off and hit a fifth harder, and pay 60% more glint and 30% more experience. Falling costs a fifth of your glint: it lies where you fell, marked on the map, until you go back for it.
+- **Blows with weight.** A hit that lands holds the world still for an instant, longer for a critical hit or a kill. While health is low the corners of the page are scribbled red and the health bar is ringed. Every warning and reward has a sound.
+
 ## Run it
 
 Any static file server works; the source runs as plain ES modules with no build step.
@@ -42,7 +51,8 @@ node build.js
 | Space / Tab | Attack the nearest creature / pick the next one |
 | Right drag, Q / E | Turn and tilt the view. A journey starts low behind the hero, looking to the horizon; tilt up for the view from above. |
 | Wheel | Zoom |
-| C / B / V | Character sheet / bag / the view (two ready-made views, and buttons to turn, tilt and zoom) |
+| C / B / V | Character sheet (attributes and talents) / bag / the view (two ready-made views, and buttons to turn, tilt and zoom) |
+| T / M | Travel between waystones / sound on and off |
 
 On a touch screen:
 
@@ -54,6 +64,7 @@ On a touch screen:
 | Round buttons | Skills (aim at the target, or at the nearest creature) and the two flasks |
 | Arrows button | Pick the next creature |
 | Drag the picture / pinch | Turn and tilt the view / zoom. The View menu has buttons for both. |
+| Tap the map | Travel between waystones |
 
 Held sideways, the picture fills the screen and the controls sit in its corners. Held upright, the picture is a strip across the top (16:9, growing to 5:4 on a tall phone) and everything else is laid out on the page below it: status, messages, menus, then the stick and the buttons under the thumbs.
 
@@ -82,6 +93,7 @@ Everything outside the starting town comes from the seed:
 - **Thirteen biomes**, chosen from five slow fields (warmth, wet, enchantment, wildness, distance from home). Each has its own ground pencils, stone, plants and beasts: Larkmeadow, Petalwood, Deepfir, Amberwood, Saltreach, Skyfell, Strawmere, Reedmarsh, Hoarwood, Roseheath, Capwood, Silverbirch, Cinderfell.
 - **Woods with a colour of their own** — trees take one of their biome's leaf pencils, mostly the one their district favours, with a few strays.
 - **Sites** at road crossings: shrines, travellers' camps (with a tinker who trades), ruins (with an elder beast living in them) and farms, each laid out with variations and given a made-up name (Aldwick Camp, Ruins of Fenholt…).
+- **Finds** off the roads, on a grid of their own: caches, rings of standing stones and beacons (`src/world/finds.js`).
 - **Beasts that take after their country** — six body plans become Frost Craglings, Marsh Shellsnaps, Petal Wisps and so on: the biome supplies the coat and the name, distance from town the level.
 - **Weather and hours** — cloud cover drifts; day, dusk and night each change which pencils the page is drawn with.
 
@@ -107,7 +119,7 @@ src/
   main.js             entry point
   core/               events, input, device, maths, seeded noise (no game knowledge)
   world/              generation and queries                     (no GL, runs in Node)
-    biomes.js  props.js  sites.js  worldgen.js  world.js
+    biomes.js  props.js  sites.js  finds.js  worldgen.js  world.js
   gfx/                rendering                                  (no game knowledge)
     gl.js  shaderlib.js  renderer.js  camera.js  worldTextures.js
     glsl/             shared shader chunks (pencil.js is the drawing hand and the pencil box)
@@ -115,8 +127,9 @@ src/
     archetypes/       creature models (GLSL)
   game/               simulation
     game.js           owns state, runs systems in order
-    systems/          controls, player, ai, combat, skills, loot, spawner, bounties, tutorial
-    data/             monsters, items, skills
+    systems/          controls, player, ai, specials (creature moves), hazards, combat, skills, loot,
+                      spawner, discover (finds, boons, travel), bounties, stakes (night, falling), tutorial
+    data/             monsters, items and recipes, skills, talents
     fx.js  view.js  stats.js  environment.js  save.js
   ui/                 HUD, nameplates, panels, guide (first steps), touch stick, styles (three layouts in ui.css)
   audio/              synthesized sound and music
@@ -136,6 +149,10 @@ Three rules keep it growable:
 | A prop (tree, building…) | `registerProp({...})` in `world/props.js` with `sdf_<id>` (shape) and `mat_<id>` (which pencil, how firmly, what pen marks), then list it in a biome or a site. |
 | A place (camp, ruin…) | `registerSiteKind(id, build)` in `world/sites.js`; return what to flatten, pave and build, and which townsfolk live there. |
 | A monster | A row in `game/data/monsters.js` and an entry in a biome's `monsters`. New shape: `registerArchetype({...})` in `gfx/archetypes/`. |
+| A creature move | An entry in `SPECIALS` in `game/systems/specials.js` (how it begins, and what it does each frame), named by a monster's `special`. |
+| A talent | A row in `game/data/talents.js`, and the line that reads it where it takes effect (`game/stats.js` or a skill's `cast()`). |
+| A bounty kind | An entry in `KINDS` in `game/systems/bounties.js`. |
+| Something to find | A kind in `world/finds.js` (and its prop), and what reaching it does in `game/systems/discover.js`. |
 | A skill | A row with a `cast()` in `game/data/skills.js`. |
 | An item | A row in `game/data/items.js` (and a drop chance on a monster). |
 | An effect | `registerFx(id, glsl)` in `gfx/passes/fx.js`, then spawn it from a recipe in `game/fx.js`. |
@@ -152,7 +169,7 @@ The interface is the same paper: cream plates with a pen border, hand lettering,
 - Every control is a real button, at least 30 px square (40 px or more on a touch screen), with a name for screen readers; bars are meters with their values; messages are announced as status.
 - Keyboard: Tab, Enter and Space work the interface whenever a panel or the title is up or a button has focus, with a visible blue pen ring; C, B and V open panels, Esc closes them.
 - Nothing needs a drag, a pinch or a wheel: tapping the picture walks, and the View panel has buttons for turning, tilting and zooming. Pinch-zooming the page itself is left on.
-- Nothing relies on colour alone (bars carry an icon and numbers), and `prefers-reduced-motion` turns off screen shake and the title's turning view.
+- Nothing relies on colour alone (bars carry an icon and numbers), and `prefers-reduced-motion` turns off screen shake, the instant the world is held when a blow lands, and the title's turning view.
 - Lettering never sits on other lettering: name slips are laid out so they clear each other and the HUD, damage numbers start above a creature's slip and step over anything in their way, and the HUD is drawn over the world's labels (`src/ui/plates.js`).
 
 The game itself is a moving picture played with a mouse, keys or thumbs; it has not been tested with a screen reader beyond the roles above.
