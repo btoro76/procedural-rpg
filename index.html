@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>Brushwild</title>
+<meta name="description" content="An open world drawn in pen and coloured pencil, entirely by shaders. Wander, fight and gather in your browser, on a desktop or a phone." />
+<meta name="theme-color" content="#e8e2d4" />
+<link rel="canonical" href="https://kevintngo.github.io/brushwild/" />
+<link rel="icon" href="./static/favicon-32.png" sizes="32x32" type="image/png" />
+<link rel="icon" href="./static/favicon.svg" type="image/svg+xml" />
+<link rel="apple-touch-icon" href="./static/apple-touch-icon.png" />
+<link rel="manifest" href="./static/manifest.webmanifest" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-title" content="Brushwild" />
+<meta property="og:type" content="website" />
+<meta property="og:site_name" content="Brushwild" />
+<meta property="og:title" content="Brushwild" />
+<meta property="og:description" content="An open world drawn in pen and coloured pencil, entirely by shaders. Wander, fight and gather in your browser, on a desktop or a phone." />
+<meta property="og:url" content="https://kevintngo.github.io/brushwild/" />
+<meta property="og:image" content="https://kevintngo.github.io/brushwild/static/og.jpg" />
+<meta property="og:image:type" content="image/jpeg" />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
+<meta property="og:image:alt" content="A small hero in a red tunic fights pencil-drawn creatures beside a blue-roofed cottage and a market stall. A paper card reads Brushwild, an open world drawn in pen and pencil." />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="Brushwild" />
+<meta name="twitter:description" content="An open world drawn in pen and coloured pencil, entirely by shaders. Play it in your browser, on a desktop or a phone." />
+<meta name="twitter:image" content="https://kevintngo.github.io/brushwild/static/og.jpg" />
+<meta name="twitter:image:alt" content="A small hero in a red tunic fights pencil-drawn creatures beside a blue-roofed cottage and a market stall. A paper card reads Brushwild, an open world drawn in pen and pencil." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Alegreya:wght@700&family=Patrick+Hand&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="./src/ui/ui.css" />
+</head>
+<body class="titled">
+<canvas id="view" role="img" aria-label="The world of Brushwild, drawn in pen and pencil"></canvas>
+
+<div id="ui">
+  <!-- status -->
+  <section id="status" class="plate" aria-label="Your character">
+    <div class="badge" id="lvl" title="Level">1</div>
+    <div class="bars">
+      <div class="who"><span id="pname">Wayfarer</span><span id="glint" class="coin" title="Glint">20</span></div>
+      <div class="meter"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 14C3 10 1.5 7.4 2.6 5c1-2.2 4-2.1 5.4.2 1.4-2.3 4.4-2.4 5.4-.2 1.1 2.4-.4 5-5.4 9z" fill="#d8584a" stroke="#623c1e" stroke-width="1.3" stroke-linejoin="round"/></svg><div class="bar hp" id="hp-bar" role="meter" aria-label="Health" aria-valuemin="0"><i id="hp-fill"></i></div><b id="hp-text">0 / 0</b></div>
+      <div class="meter"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 1.6c2.4 3.2 4.6 5.6 4.6 8.2a4.6 4.6 0 0 1-9.2 0c0-2.6 2.2-5 4.6-8.2z" fill="#4f86b4" stroke="#623c1e" stroke-width="1.3" stroke-linejoin="round"/></svg><div class="bar fo" id="fo-bar" role="meter" aria-label="Focus" aria-valuemin="0"><i id="fo-fill"></i></div><b id="fo-text">0 / 0</b></div>
+      <div class="bar xp" id="xp-bar" role="meter" aria-label="Experience toward the next level" aria-valuemin="0" aria-valuemax="100"><i id="xp-fill"></i></div>
+    </div>
+  </section>
+
+  <section id="target" class="plate" aria-label="Your target" hidden>
+    <div class="who"><span id="t-name"></span><span id="t-lvl" class="dim"></span></div>
+    <div class="bar hp"><i id="t-fill"></i></div>
+  </section>
+
+  <section id="compass" aria-label="Map and place">
+    <div id="map-ring"></div>
+    <div id="place" class="plate small"><span id="zone">Hearthmere</span><span id="clock" class="dim">Morning</span></div>
+  </section>
+
+  <section id="tracker" class="plate small" aria-label="Bounty" hidden>
+    <div class="label">Bounty</div>
+    <div id="tracker-text"></div>
+  </section>
+
+  <section id="log" role="log" aria-live="polite" aria-label="Messages"></section>
+  <div id="toast" class="plate" role="status" aria-live="polite"></div>
+
+  <section id="hotbar" aria-label="Skills and potions"></section>
+
+  <nav id="menu" aria-label="Menus">
+    <button type="button" data-open="character" title="Character (C)" aria-label="Character sheet, key C"></button>
+    <button type="button" data-open="bag" title="Bag (B)" aria-label="Bag, key B"></button>
+    <button type="button" data-open="view" title="View (V)" aria-label="Turn and zoom the view, key V"></button>
+    <button type="button" data-open="help" title="How to play" aria-label="How to play"></button>
+    <button type="button" data-open="sound" title="Sound (M)" aria-label="Sound on or off, key M" aria-pressed="true"></button>
+  </nav>
+
+  <div id="plates" aria-hidden="true"></div>
+  <div id="floaters" aria-hidden="true"></div>
+  <div id="panels"></div>
+</div>
+
+<div id="title">
+  <div class="title-card">
+    <h1>Brushwild</h1>
+    <p class="tag">An open world drawn in pen and pencil</p>
+    <div class="title-actions">
+      <button type="button" id="btn-begin" class="primary" disabled>Painting the world…</button>
+      <button type="button" id="btn-new" hidden>New journey</button>
+    </div>
+    <p class="keys" id="keys-hint">Click to move and fight &nbsp;·&nbsp; WASD to walk &nbsp;·&nbsp; 1–4 skills &nbsp;·&nbsp; drag right mouse to turn the view</p>
+  </div>
+</div>
+
+<div id="fatal" hidden>
+  <div class="plate"><h2>Brushwild could not start</h2><p></p></div>
+</div>
+
+<script type="module" src="./src/main.js"></script>
+</body>
+</html>
