@@ -30,6 +30,10 @@ import { Discover } from './systems/discover.js';
 import { Stakes } from './systems/stakes.js';
 import { loadSave, writeSave } from './save.js';
 
+const HOLD_MAX = 0.14;     // seconds: the longest the world is ever held for one blow
+const HOLD_RATE = 0.06;    // how fast time runs while it is held
+const LOW_HEALTH = 0.3;    // share of health under which the page warns
+
 export class Game {
   constructor(canvas) {
     this.canvas = canvas;
@@ -47,6 +51,8 @@ export class Game {
     this.entities = new Entities();
     this.monsters = [];
     this.look = { hurt: 0, fade: 0, fadeGoal: 1 };   // fade: how far the page has been drawn in
+    this.stop = 0;           // seconds the world is still held for a blow that landed (see hold)
+    this.low = false;        // the hero's health is low
     this.paused = true;      // until the title screen is dismissed
     this.time = 0;
     this.saveTimer = 8;
@@ -106,31 +112,47 @@ export class Game {
     requestAnimationFrame(tick);
   }
 
-  frame(dt, ms) {
+  /**
+   * A blow that lands holds the world still for an instant, so it reads as weight
+   * rather than as a number. Holds do not add up: the longest one asked for wins.
+   */
+  hold(seconds) {
+    if (this.reducedMotion) return;
+    this.stop = Math.max(this.stop, Math.min(seconds, HOLD_MAX));
+  }
+
+  frame(real, ms) {
     const p = this.player, w = this.world;
+    // While a blow is held, the world all but stops; the camera, the page and the interface do not.
+    let dt = real;
+    if (this.stop > 0) { this.stop -= real; dt = real * HOLD_RATE; }
     this.time += dt;
     if (!this.paused) this.hour = (this.hour + dt * 24 / GAME.DAY_SECONDS) % 24;
     for (const s of this.systems) s.update(dt);
     this.entities.sweep();
-    this.bus.emit('frame', dt);
+    this.bus.emit('frame', real);
 
     this.biome = w.biome(p.x, p.z);
     updateEnv(this.env, this.hour, this.biome.rock);
     // the weather drifts: skies clear and cloud over by the hour and the country
     this.env.cloud = 0.36 + 0.24 * Math.sin(this.time / 83 + p.x * 0.002) * Math.cos(this.time / 131 + p.z * 0.0017);
-    this.look.hurt = Math.max(0, this.look.hurt - dt * 2.2);
-    this.look.fade = damp(this.look.fade, this.look.fadeGoal, 3, dt);
+    // Low on health: the red scribble at the page's edges stays, breathing slowly, until it is mended.
+    const low = !p.dead && p.hp < p.maxHp * (this.low ? LOW_HEALTH + 0.08 : LOW_HEALTH);
+    if (low !== this.low) { this.low = low; if (low && !this.paused) this.bus.emit('lowhealth', {}); }
+    const floor = low ? 0.56 + (this.reducedMotion ? 0 : 0.14 * Math.sin(this.time * 3.2)) : 0;
+    this.look.hurt = Math.max(floor, this.look.hurt - real * 2.2);
+    this.look.fade = damp(this.look.fade, this.look.fadeGoal, 3, real);
 
     this.renderer.worldTex.update(p.x, p.z, 2);
     w.prune(p.x, p.z);
     this.camera.still = this.reducedMotion;      // no screen shake for those who ask for less motion
-    this.camera.update(dt, [p.x, p.y + 1.0, p.z], this.renderer.size.cssW / this.renderer.size.cssH, (x, z) => w.surface(x, z));
+    this.camera.update(real, [p.x, p.y + 1.0, p.z], this.renderer.size.cssW / this.renderer.size.cssH, (x, z) => w.surface(x, z));
     if (!this.warmed) this.warmed = this.renderer.warm();
     this.renderer.adapt(ms);
     this.renderer.render(this.view.build(this.time));
     this.input.endFrame();
 
-    this.saveTimer -= dt;
+    this.saveTimer -= real;
     if (this.saveTimer <= 0) { this.saveTimer = 8; this.save(); }
   }
 

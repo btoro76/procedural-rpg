@@ -9,7 +9,7 @@ const MAX_VOICES = { sfx: 24, chime: 16, music: 48, ambience: 16 }; // a sound p
 const HEARING = 30;        // world units beyond which monster sounds are silent
 const NEAR = 4;            // ...and within which they play at full level
 const REPEAT_GAP = 0.035;  // an event fired twice at once is staggered, not stacked
-const REPEAT_GAPS = { step: 0.13 };
+const REPEAT_GAPS = { step: 0.13, 'charge:dust': 0.1 };
 const MAX_STAGGER = 0.12;  // a repeat that would have to wait longer is dropped
 const TICK = 0.1;          // seconds between scheduler updates
 const LOOKAHEAD = 0.5;     // music is scheduled this far ahead of the audio clock
@@ -86,10 +86,69 @@ const SOUNDS = {
       k.noise({ filter: 'lowpass', freq: 380, to: 160, decay: 0.2, gain: 0.12 });
       return;
     }
+    if (target && target.guard) {       // tucked in its shell: the blow glances off, dry and high
+      k.tone({ type: 'triangle', freq: 1180 * v, to: 900 * v, glide: 0.04, attack: 0.002, decay: 0.1, gain: 0.08 });
+      k.noise({ freq: 3000, q: 2, attack: 0.002, decay: 0.05, gain: 0.06 });
+      return;
+    }
     k.noise({ freq: (crit ? 1700 : 1150) * v, q: 1.1, attack: 0.003, decay: 0.12, gain: crit ? 0.17 : 0.14 });
     k.tone({ type: 'triangle', freq: 230 * v, to: 120 * v, attack: 0.003, decay: 0.16, gain: 0.15 });
     if (crit) k.bell(k.key(3, 74), { decay: 0.5, gain: 0.05 });
+    // the blow that fells a creature lands lower and longer
+    if (target && target.hp <= 0) k.tone({ freq: 104 * v, to: 46, attack: 0.004, decay: target.elite ? 0.55 : 0.3, gain: target.elite ? 0.2 : 0.13 });
   }, (p) => p.target),
+
+  // A creature winds up its move: its own voice, rising, while the mark on the ground fills in.
+  'monster:special': spatial((k, m) => {
+    const voice = voiceOf(m), f = voice.freq * (m.elite ? 0.82 : 1);
+    k.tone({ type: voice.type, cutoff: Math.min(2400, f * 3.5), freq: f * 0.62, to: f * 1.25, glide: 0.32, attack: 0.06, hold: 0.16, decay: 0.22, gain: 0.085 });
+    k.noise({ freq: 500, to: 1900, glide: 0.34, q: 1.6, attack: 0.2, hold: 0.06, decay: 0.16, gain: 0.05 });
+  }),
+
+  slam: spatial((k, { heavy }) => {
+    const v = rand(0.92, 1.08);
+    k.tone({ freq: (heavy ? 88 : 112) * v, to: 40, decay: heavy ? 0.5 : 0.32, gain: heavy ? 0.26 : 0.17 });
+    k.noise({ filter: 'lowpass', freq: heavy ? 700 : 900, to: 140, attack: 0.004, decay: heavy ? 0.45 : 0.28, gain: heavy ? 0.16 : 0.11 });
+  }),
+
+  'monster:shot': spatial((k, m) => {
+    const f = voiceOf(m).freq * rand(0.95, 1.06);
+    k.tone({ type: 'triangle', freq: f * 1.1, to: f * 0.55, glide: 0.14, attack: 0.004, decay: 0.2, gain: 0.07 });
+    k.noise({ freq: 2400, to: 900, q: 1.2, attack: 0.004, decay: 0.12, gain: 0.05 });
+  }),
+
+  'shot:hit': spatial((k) => {
+    k.noise({ filter: 'lowpass', freq: 1100, to: 300, attack: 0.004, decay: 0.2, gain: 0.09 });
+    k.tone({ freq: 190, to: 95, decay: 0.14, gain: 0.07 });
+  }),
+
+  'hazard:cloud': spatial((k, { life }) => {
+    k.tone({ freq: 240, to: 150, glide: 0.2, attack: 0.02, decay: 0.24, gain: 0.05 });       // the puff
+    k.noise({ freq: 2600, to: 1100, glide: 0.8, q: 0.7, attack: 0.18, hold: 0.25, decay: Math.min(1.6, (life || 2) * 0.5), gain: 0.05 });
+  }),
+
+  // hooves: one beat for each puff of dust a charge kicks up
+  'charge:dust': spatial((k) => {
+    const v = rand(0.9, 1.12);
+    k.tone({ freq: 84 * v, to: 52 * v, decay: 0.11, gain: 0.075 });
+    k.noise({ filter: 'lowpass', freq: 520 * v, to: 220, decay: 0.1, gain: 0.04 });
+  }),
+
+  guard: spatial((k) => {
+    k.tone({ type: 'triangle', freq: 540, to: 410, glide: 0.04, attack: 0.002, decay: 0.09, gain: 0.09 });
+    k.noise({ freq: 2800, q: 2, attack: 0.002, decay: 0.05, gain: 0.05 });
+  }, (p) => p.entity),
+
+  // stepping out of the way of a blow: a breath of air
+  miss(k, { target, text }) {
+    if (!target || target.kind !== 'player' || text !== 'Dodged') return;
+    k.noise({ freq: 1500, to: 3000, glide: 0.1, q: 1.6, attack: 0.03, decay: 0.14, gain: 0.05 });
+  },
+
+  // two soft, low knocks, like a pulse: heard once, when health first runs low
+  lowhealth(k) {
+    for (const at of [0, 0.26]) k.tone({ freq: 74, to: 52, at, attack: 0.008, decay: 0.26, gain: at ? 0.13 : 0.17 });
+  },
 
   'monster:alert': spatial((k, m) => {
     const voice = voiceOf(m), f = voice.freq * rand(0.94, 1.08) * (m.elite ? 0.82 : 1);
@@ -187,6 +246,71 @@ const SOUNDS = {
   'site:enter'(k) {
     k.piano(k.key(3, 57), { bus: 'chime', strings: 1, gain: 0.14 });
     k.piano(k.key(5, 57), { bus: 'chime', strings: 1, at: 0.42, gain: 0.15 });
+  },
+
+  found(k, { kind }) {
+    if (kind === 'stones') return;                    // the boon they lend is the sound
+    if (kind === 'cache') {                           // a lid knocked open
+      k.noise({ filter: 'lowpass', freq: 800, to: 300, attack: 0.003, decay: 0.12, gain: 0.09 });
+      k.tone({ type: 'triangle', cutoff: 900, freq: 170, to: 118, glide: 0.05, attack: 0.003, decay: 0.14, gain: 0.1 });
+      k.bell(k.key(5, 74), { bus: 'chime', at: 0.12, decay: 1.2, gain: 0.05 });
+    } else if (kind === 'beacon') {                   // lit: a low bell, and the places it shows answer
+      k.bell(k.key(0, 57), { bus: 'chime', decay: 2.8, gain: 0.09 });
+      [2, 3, 5].forEach((step, i) => k.bell(k.key(step, 69), { bus: 'chime', at: 0.35 + i * 0.16, decay: 1.3, gain: 0.045 }));
+    } else {                                          // a place, after the two notes that greet it
+      k.bell(k.key(5, 69), { bus: 'chime', at: 0.85, decay: 1.8, gain: 0.045 });
+    }
+  },
+
+  boon(k) {
+    for (const step of [0, 2, 3]) k.tone({ bus: 'chime', freq: k.key(step, 57), attack: 0.4, hold: 0.3, decay: 1.8, gain: 0.04 });
+    k.bell(k.key(5, 69), { bus: 'chime', at: 0.45, decay: 2, gain: 0.05 });
+  },
+
+  travel(k) {
+    k.noise({ freq: 380, to: 2400, glide: 0.7, q: 0.9, attack: 0.5, hold: 0.1, decay: 0.4, gain: 0.07 });
+    k.tone({ bus: 'chime', freq: k.key(0, 57), to: k.key(0, 69), glide: 0.7, attack: 0.4, hold: 0.2, decay: 0.5, gain: 0.05 });
+  },
+
+  'travel:arrive'(k) {
+    k.bell(k.key(0, 69), { bus: 'chime', decay: 2.4, gain: 0.08 });
+    k.bell(k.key(3, 69), { bus: 'chime', at: 0.18, decay: 2, gain: 0.05 });
+    k.noise({ freq: 1800, to: 500, glide: 0.4, q: 0.8, attack: 0.02, decay: 0.5, gain: 0.05 });
+  },
+
+  talent(k) {
+    const note = { bus: 'chime', strings: 1, ring: 0.6 };
+    k.piano(k.key(3, 57), { ...note, gain: 0.16 });
+    k.piano(k.key(5, 57), { ...note, at: 0.14, gain: 0.17 });
+    k.bell(k.key(8, 57), { bus: 'chime', at: 0.3, decay: 1.4, gain: 0.04 });
+  },
+
+  // a new country underfoot; a fuller chord when the Long Walk reaches one of its marks
+  land(k, { mark }) {
+    const note = { bus: 'chime', strings: 1, ring: 0.7 };
+    [0, 2, 3].forEach((step, i) => k.piano(k.key(step, 57), { ...note, at: i * 0.22, gain: 0.15 }));
+    if (mark) for (const step of [0, 3, 5]) k.piano(k.key(step, 57), { ...note, ring: 1, at: 0.8, gain: 0.13 });
+  },
+
+  // dusk settles on the relative minor: an open fifth, low and slow
+  nightfall(k) {
+    for (const step of [-1, 2]) k.tone({ bus: 'chime', freq: k.key(step, 57), attack: 0.6, hold: 0.5, decay: 2.4, gain: 0.05 });
+    k.bell(k.key(4, 69), { bus: 'chime', at: 1, decay: 2.2, gain: 0.035 });
+  },
+
+  daybreak(k) {
+    [0, 2, 3].forEach((step, i) => k.bell(k.key(step, 74), { bus: 'chime', at: i * 0.2, decay: 1.6, gain: 0.045 }));
+  },
+
+  // glint picked back up from where the hero fell
+  recovered(k) {
+    [0, 2, 3, 5].forEach((step, i) => k.bell(k.key(step, 79), { at: i * 0.07, decay: 0.5, gain: 0.06 }));
+  },
+
+  // a first step learned
+  'guide:step'(k) {
+    k.bell(k.key(3, 74), { bus: 'chime', decay: 0.7, gain: 0.05 });
+    k.bell(k.key(5, 74), { bus: 'chime', at: 0.1, decay: 1, gain: 0.05 });
   },
 };
 

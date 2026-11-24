@@ -210,6 +210,7 @@ export function createUI(game) {
     set('lvl', el.lvl, 'textContent', String(s.level));
     set('glint', el.glint, 'textContent', String(s.glint));
     scale('hp', el.hpFill, p.hp / p.maxHp);
+    if (last.low !== game.low) { last.low = game.low; el.hpBar.classList.toggle('low', !!game.low); }
     scale('fo', el.foFill, p.focus / p.maxFocus);
     scale('xp', el.xpFill, s.xp / xpToNext(s.level));
     set('hpT', el.hpText, 'textContent', `${Math.ceil(p.hp)} / ${p.maxHp}`);

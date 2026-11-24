@@ -5,6 +5,9 @@ import { xpFactor, xpToNext, derive, POINTS_PER_LEVEL } from '../stats.js';
 import { rank, rollOffer } from '../data/talents.js';
 import { NIGHT } from './stakes.js';
 
+// Seconds the world is held when a blow lands (game.hold): enough to feel, too short to notice as a pause.
+const HOLD = { hit: 0.03, crit: 0.06, kill: 0.07, elder: 0.13, taken: 0.05 };
+
 export class Combat {
   constructor(game) {
     this.game = game;
@@ -58,10 +61,15 @@ export class Combat {
       const dx = target.x - source.x, dz = target.z - source.z, d = Math.hypot(dx, dz) || 1;
       const shove = target.guard || ai.state === 'special' ? 0 : crit ? 3.2 : 1.8;      // a creature mid-move holds its ground
       ai.pushX = dx / d * shove; ai.pushZ = dz / d * shove;
-      if (target.hp <= 0) this.slay(target);
+      const fell = target.hp <= 0;
+      if (!target.guard) g.hold(fell ? (target.elite ? HOLD.elder : HOLD.kill) : crit ? HOLD.crit : HOLD.hit);
+      if (crit || (fell && target.elite)) g.camera.shake = Math.min(1, g.camera.shake + (fell && target.elite ? 0.55 : 0.32));
+      if (fell) this.slay(target);
     } else if (target.kind === 'player') {
       target.calm = 0;
-      g.camera.shake = Math.min(1, g.camera.shake + 0.5);
+      const heavy = amount >= target.maxHp * 0.08;          // a cloud's sting does not stop the world; a slam does
+      if (heavy) g.hold(HOLD.taken);
+      g.camera.shake = Math.min(1, g.camera.shake + (heavy ? 0.5 : 0.25));
       g.look.hurt = 1;
       if (target.hp <= 0) this.fall(target);
     }
