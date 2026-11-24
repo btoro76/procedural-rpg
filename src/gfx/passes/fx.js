@@ -34,15 +34,19 @@ uniform vec3 uCamPos, uCamRight, uCamUp;
 uniform float uFar;
 out vec2 vUv;
 out float vT;
-flat out vec4 vParams, vColor, vMore;
+out vec3 vWorld;
+flat out vec4 vParams, vColor, vMore, vPosSize;
 #include <common>
 void main() {
   vec2 corner = vec2(float(gl_VertexID & 1), float(gl_VertexID >> 1)) * 2.0 - 1.0;
-  vec2 c = rot2(iParams.w) * corner;
+  // A mark lying on the ground may be longer than it is wide (a lane): aspect stretches it along
+  // its own y. Its quad is drawn a little oversize, because the mark is then laid on the real
+  // ground under each pixel (see the fragment shader), which may rise or fall under a flat quad.
+  vec2 c = rot2(iParams.w) * (corner * (iMore.x > 0.5 ? vec2(1.35, 1.35 * iMore.y) : vec2(1.0)));
   vec3 wp = iMore.x > 0.5
     ? iPosSize.xyz + vec3(c.x, 0.0, c.y) * iPosSize.w
     : iPosSize.xyz + (uCamRight * c.x + uCamUp * c.y * iMore.y) * iPosSize.w;
-  vUv = corner; vParams = iParams; vColor = iColor; vMore = iMore;
+  vUv = corner; vParams = iParams; vColor = iColor; vMore = iMore; vPosSize = iPosSize; vWorld = wp;
   gl_Position = uViewProj * vec4(wp, 1.0);
   vT = length(wp - uCamPos);
   gl_Position.z = (clamp(vT / uFar, 0.0, 0.999) * 2.0 - 1.0) * gl_Position.w;
@@ -52,15 +56,18 @@ void main() {
 const fxFS = () => /* glsl */ `
 in vec2 vUv;
 in float vT;
-flat in vec4 vParams, vColor, vMore;
+in vec3 vWorld;
+flat in vec4 vParams, vColor, vMore, vPosSize;
 layout(location = 0) out vec4 oColor;
 uniform sampler2D uGbuf;
 uniform vec2 uInvRes;
+uniform vec3 uCamPos;
 uniform float uTime, uDpr;
 #include <common>
 const vec3 FX_PAPER = vec3(0.910, 0.886, 0.831);
 const vec3 FX_INK = vec3(0.384, 0.235, 0.118);
 float gPx = 0.01;                                   // one pixel, in quad units
+vec2 gPx2 = vec2(0.01);                             // the same along each axis (a stretched mark has two)
 float pen(float d) { return 1.0 - smoothstep(1.1 * gPx, 2.1 * gPx, abs(d)); }
 float body(float d) { return 1.0 - smoothstep(-gPx, gPx, d); }
 vec4 mark(vec3 c, float a) { return vec4(c * a, a); }
@@ -78,14 +85,28 @@ float wobbly(vec2 uv, float seed) {
 ${FX_TYPES.map((f) => f.glsl).join('\n')}
 void main() {
   float sceneT = texture(uGbuf, gl_FragCoord.xy * uInvRes).z;
-  float soft = saturate((sceneT - vT) * 1.6 + (vMore.x > 0.5 ? 1.3 : 0.7));
+  float soft = saturate((sceneT - vT) * 1.6 + 0.7);
+  vec2 uv = vUv;
+  if (vMore.x > 0.5) {
+    // a mark on the ground is drawn on the ground itself: find the point of the world under this
+    // pixel and ask where that lies in the mark, so it follows slopes and never sinks or floats
+    vec3 at = uCamPos + normalize(vWorld - uCamPos) * sceneT;
+    vec2 d = at.xz - vPosSize.xz;
+    // only ground takes the mark, not a trunk standing in it; a long mark may run up or down a slope
+    if (abs(at.y - vPosSize.y) > 0.9 + 0.6 * length(d)) discard;
+    float c = cos(vParams.w), s = sin(vParams.w);
+    uv = vec2(c * d.x - s * d.y, s * d.x + c * d.y) / (vPosSize.w * vec2(1.0, vMore.y));
+    if (max(abs(uv.x), abs(uv.y)) > 1.0) discard;
+    soft = 1.0;
+  }
   if (soft <= 0.0) discard;
-  gPx = length(fwidth(vUv)) * 0.7 * uDpr;
+  gPx2 = min(fwidth(uv) * uDpr, vec2(0.12));
+  gPx = min(length(gPx2) * 0.7, 0.09);
   float steps = max(vMore.z * 12.0, 2.0);
   float life = floor(vParams.y * steps) / steps;      // on twos
   vec4 c = vec4(0.0);
   switch (int(vParams.x + 0.5)) {
-${FX_TYPES.map((f) => `    case ${f.type}: c = fx_${f.id}(vUv, life, vParams.z, vColor); break;`).join('\n')}
+${FX_TYPES.map((f) => `    case ${f.type}: c = fx_${f.id}(uv, life, vParams.z, vColor); break;`).join('\n')}
   }
   c *= step(0.5, soft);
   if (c.a < 0.01) discard;
@@ -216,6 +237,43 @@ vec4 fx_beam(vec2 uv, float life, float seed, vec4 col) {
   float tick = step(0.6, hash12(tc + seed)) * pen((fract(tk.x) - 0.5) / 3.0) * step(abs(fract(tk.y) - 0.5), 0.3) * body(d);
   vec4 shaft = over(mark(FX_INK, pen(d) * 0.8 * within), mark(FX_PAPER, body(d) * within * 0.92));
   return over(mark(col.rgb * 0.85, tick * within), shaft);
+}`);
+
+registerFx('zone', /* glsl */ `
+vec4 fx_zone(vec2 uv, float life, float seed, vec4 col) {
+  // ground that is about to hurt: a pen ring drawn round it at once, and the
+  // warning pencil hatched in from the middle; when it reaches the ring, the blow lands
+  float r = wobbly(uv, seed);
+  float rim = pen(r - 0.93) + pen(wobbly(uv, seed + 0.37) - 0.88) * 0.5;
+  float fill = body(r - 0.9 * mix(0.12, 1.0, life)) * hatch(uv, seed) * 0.5;
+  return mark(col.rgb * 0.82, saturate(max(rim, fill)) * min(col.a, 1.0));
+}`);
+
+registerFx('lane', /* glsl */ `
+vec4 fx_lane(vec2 uv, float life, float seed, vec4 col) {
+  // the line of a charge: two pen lines, arrow heads along it, and hatching that runs up it as the charge comes
+  vec2 a = abs(uv);
+  float sides = (1.0 - smoothstep(1.1 * gPx2.x, 2.1 * gPx2.x, abs(a.x - 0.9))) * step(a.y, 0.98)
+              + (1.0 - smoothstep(1.1 * gPx2.y, 2.1 * gPx2.y, abs(a.y - 0.98))) * step(a.x, 0.9) * 0.6;
+  float along = uv.y * 4.0 - 0.5;
+  float v = fract(along) - 0.5;
+  float arrows = pen(abs(uv.x) * 0.55 + v * 0.5 - 0.1) * step(a.x, 0.62) * 0.7;
+  float fill = step(uv.y, mix(-1.0, 1.0, life)) * step(a.x, 0.9) * hatch(uv * vec2(1.0, 4.0), seed) * 0.42;
+  return mark(col.rgb * 0.82, saturate(max(max(sides, arrows), fill)) * min(col.a, 1.0));
+}`);
+
+registerFx('cloud', /* glsl */ `
+vec4 fx_cloud(vec2 uv, float life, float seed, vec4 col) {
+  // spores hanging over a patch of ground: a scalloped pen edge, loose hatching, drifting specks
+  float ang = atan(uv.y, uv.x), r = length(uv);
+  float turn = floor(uTime * 6.0) * 0.21;
+  float edge = 0.86 + 0.07 * abs(sin(ang * 5.5 + seed * 9.0 + turn));
+  float fade = smoothstep(0.0, 0.08, life) * (1.0 - smoothstep(0.82, 1.0, life));
+  float rim = pen(r - edge);
+  float fill = body(r - edge) * hatch(uv, seed + turn) * 0.34;
+  vec2 g = uv * 5.0 + vec2(turn, -turn * 0.7);
+  float specks = body(length(fract(g) - 0.5 - (hash22(floor(g) + seed) - 0.5) * 0.5) - 0.11) * body(r - edge) * step(0.55, hash12(floor(g) + seed * 3.0));
+  return mark(col.rgb * 0.8, saturate(max(max(rim * 0.8, fill), specks * 0.8)) * fade * min(col.a, 1.0));
 }`);
 
 registerFx('ripple', /* glsl */ `

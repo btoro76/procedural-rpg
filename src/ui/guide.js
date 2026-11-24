@@ -9,6 +9,7 @@ const WORDS = {
   fight: ['Click the Sproutling to attack it.', 'Tap the sword to attack the Sproutling.'],
   skill: ['Press 1 for Cleave: one wide cut through everything in front of you.', 'Tap the ringed button, Cleave: one wide cut through everything in front of you.'],
   bounty: ['Click Bram, the warden, and take a bounty from his board.', 'Tap Bram, the warden, and take a bounty from his board.'],
+  'tip:dodge': ['Mustard hatching on the ground means a blow is coming there. Step out of it.', 'Mustard hatching on the ground means a blow is coming there. Step out of it.'],
   'tip:tonic': ['Low on health: press R to drink a Red Tonic.', 'Low on health: tap the red flask.'],
   'tip:points': ['You have points to spend: press C for your character sheet.', 'You have points to spend: open your character sheet.'],
 };

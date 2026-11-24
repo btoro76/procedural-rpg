@@ -41,7 +41,7 @@ export const SKILLS = [
     },
   },
   {
-    id: 'mend', name: 'Mend', key: '3', unlock: 3, cooldown: 14, focus: 16, icon: 'mend',
+    id: 'mend', name: 'Mend', key: '3', unlock: 4, cooldown: 14, focus: 16, icon: 'mend',
     desc: 'Knit your wounds: restores a third of your health over a few moments.',
     cast(g, p) {
       p.action = 2; p.actionT = 0; p.actionDur = 0.5;
@@ -50,8 +50,8 @@ export const SKILLS = [
     },
   },
   {
-    id: 'step', name: 'Gale Step', key: '4', unlock: 5, cooldown: 6, focus: 8, icon: 'step',
-    desc: 'Dash a short way, untouchable while you move.',
+    id: 'step', name: 'Gale Step', key: '4', unlock: 2, cooldown: 6, focus: 8, icon: 'step',
+    desc: 'Dash a short way, untouchable while you move: the way through a charge or out of a slam.',
     cast(g, p, aim) {
       p.yaw = yawFromDir(aim.dirX, aim.dirZ);
       p.dash = { x: aim.dirX, z: aim.dirZ, speed: 26, t: 0.22 };

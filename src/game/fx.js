@@ -19,7 +19,7 @@ export class Fx {
     this.live = [];
     this.lights = [];      // short-lived point lights { x, y, z, r, color, life }
     this.ambientTimer = 0;
-    this.T = Object.fromEntries(['mote', 'leaf', 'spark', 'burst', 'slash', 'ring', 'orb', 'puff', 'heal', 'mark', 'click', 'beam', 'ripple'].map((id) => [id, fxType(id)]));
+    this.T = Object.fromEntries(['mote', 'leaf', 'spark', 'burst', 'slash', 'ring', 'orb', 'puff', 'heal', 'mark', 'click', 'beam', 'ripple', 'zone', 'lane', 'cloud'].map((id) => [id, fxType(id)]));
     this.wire(game.bus);
   }
 
@@ -182,8 +182,21 @@ export class Fx {
     bus.on('attune', (d) => { this.heal(this.game.player, SKY); this.spawn('beam', d.x, d.y + 3, d.z, { size: 1.2, aspect: 3, life: 1.4, color: SKY }); });
     bus.on('dash', (d) => { this.dust(d.x, d.y, d.z, 5, LEAFY); this.spawn('ring', d.x, d.y + 0.08, d.z, { size: 1.4, life: 0.35, color: WHITE, ground: true }); });
     bus.on('bolt:hit', (d) => { this.hit(d.x, d.y, d.z, FLAME, true); this.spawn('ring', d.x, d.y, d.z, { size: 1.6, life: 0.35, color: FLAME }); });
-    // a beast warns before it strikes, in its own colour of danger
-    bus.on('telegraph', (d) => this.spawn('ring', d.x, d.y + 0.08, d.z, { size: d.r, life: d.t, color: MUSTARD, alpha: 1, ground: true }));
+    // A beast warns before it strikes, in its own colour of danger: a ring for an ordinary blow,
+    // a patch that fills in for a special one, a lane for a charge.
+    bus.on('telegraph', (d) => {
+      if (d.lane) this.spawn('lane', d.x, d.y + 0.1, d.z, { size: d.w / 2, aspect: d.len / d.w, rot: Math.atan2(d.dirx, d.dirz), life: d.t, color: MUSTARD, ground: true });
+      else this.spawn(d.fill ? 'zone' : 'ring', d.x, d.y + 0.08, d.z, { size: d.r, life: d.t, color: MUSTARD, alpha: 1, ground: true });
+    });
+    bus.on('hazard:cloud', (d) => this.spawn('cloud', d.x, d.y + 0.12, d.z, { size: d.r, life: d.life, color: MUSTARD, ground: true }));
+    bus.on('slam', (d) => {
+      this.spawn('ring', d.x, d.y + 0.08, d.z, { size: d.r, life: 0.4, color: WHITE, ground: true });
+      this.dust(d.x, d.y, d.z, d.heavy ? 9 : 4);
+      if (d.heavy) this.game.camera.shake = Math.min(1, this.game.camera.shake + 0.45);
+    });
+    bus.on('shot:hit', (d) => { this.hit(d.x, d.y, d.z, MUSTARD, false); });
+    bus.on('charge:dust', (d) => this.dust(d.x, d.y, d.z, 2));
+    bus.on('guard', (d) => this.spawn('mark', d.entity.x, d.entity.y + 0.1, d.entity.z, { size: d.entity.radius * 2.8, life: d.t, color: SKY, ground: true, follow: d.entity, dy: 0.1 }));
   }
 }
 

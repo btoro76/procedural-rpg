@@ -3,10 +3,12 @@
 //   chase  close in; give up at the end of the leash
 //   attack wind up, strike at a fixed point in the animation, recover
 //   home   walk back and mend
-// A new behaviour (ranged, fleeing, pack tactics) is a new state function here.
+//   special the creature's own move (specials.js): warned on the ground, answered by moving
+// A new behaviour (fleeing, pack tactics) is a new state here; a new move is an entry in specials.js.
 
 import { damp, dampAngle } from '../../core/math.js';
 import { yawFromDir } from '../entities.js';
+import { SPECIALS } from './specials.js';
 
 const LEASH = 24, HIT_AT = 0.5;
 const out = { x: 0, z: 0 };
@@ -33,14 +35,18 @@ export class MonsterAI {
         m.actionT += dt / m.actionDur;
         if (m.actionT >= 1) m.action = 0;
       }
-      const ai = m.ai, def = m.def;
+      const ai = m.ai, def = m.def, sp = def.special;
       ai.cd -= dt;
+      ai.scd = (ai.scd ?? 1 + Math.random() * 2.5) - dt;       // the special is never the opening move
       let dx = 0, dz = 0;
       const toP = Math.hypot(p.x - m.x, p.z - m.z);
       const fromHome = Math.hypot(m.x - ai.hx, m.z - ai.hz);
       const fair = !p.dead && !p.safe;
 
-      if (ai.state === 'idle') {
+      if (ai.stun > 0) {
+        // winded after a missed charge: stands there, open
+        ai.stun -= dt;
+      } else if (ai.state === 'idle') {
         ai.timer -= dt;
         if (ai.timer <= 0) {
           ai.timer = 2 + Math.random() * 5;
@@ -58,7 +64,18 @@ export class MonsterAI {
       } else if (ai.state === 'chase') {
         const reach = def.range + m.radius * 0.5;
         if (!fair || fromHome > LEASH) { ai.state = 'home'; ai.provoked = false; }
+        else if (def.keep && toP < def.keep[1]) {
+          // a shooter keeps its distance: backs off when crowded, drifts sideways otherwise
+          const away = toP < def.keep[0] ? -0.75 : 0, side = (m.id % 2 ? 1 : -1) * 0.35;
+          dx = ((p.x - m.x) * away - (p.z - m.z) * side) / toP * def.speed;
+          dz = ((p.z - m.z) * away + (p.x - m.x) * side) / toP * def.speed;
+        }
         else if (toP > reach * 0.9) { dx = (p.x - m.x) / toP * def.speed; dz = (p.z - m.z) / toP * def.speed; }
+        if (sp && ai.state === 'chase' && ai.scd <= 0 && toP >= sp.min && toP <= sp.max && (!sp.below || m.hp < m.maxHp * sp.below)) {
+          ai.state = 'special';
+          ai.sp = SPECIALS[sp.kind].begin(g, m, sp);
+          g.bus.emit('monster:special', m);
+        } else
         if (toP <= reach && ai.cd <= 0 && ai.state === 'chase') {
           ai.state = 'attack'; ai.struck = false;
           m.action = 1; m.actionT = 0; m.actionDur = def.attackTime;
@@ -68,6 +85,14 @@ export class MonsterAI {
       } else if (ai.state === 'attack') {
         if (!ai.struck && m.actionT >= HIT_AT) { ai.struck = true; g.combat.maul(m); g.bus.emit('monster:strike', m); }
         if (m.action !== 1) { ai.state = 'chase'; ai.cd = def.cooldown * (0.8 + Math.random() * 0.4); }
+      } else if (ai.state === 'special') {
+        const mv = SPECIALS[sp.kind].update(g, m, sp, ai.sp, dt);
+        dx = mv.dx; dz = mv.dz;
+        if (mv.done) {
+          ai.state = 'chase'; ai.sp = null;
+          ai.scd = sp.every * (m.elite ? 0.6 : 1) * (0.85 + Math.random() * 0.3);
+          ai.cd = Math.max(ai.cd, 0.6);
+        }
       } else if (ai.state === 'home') {
         m.hp = Math.min(m.maxHp, m.hp + m.maxHp * 0.25 * dt);
         if (fromHome < 1.2) { ai.state = 'idle'; ai.timer = 1; }
@@ -97,7 +122,7 @@ export class MonsterAI {
         m.x = out.x; m.z = out.z;
       }
       const moved = Math.hypot(m.x - mx, m.z - mz);
-      if (ai.state !== 'chase' && ai.state !== 'attack' && moved > 1e-4 && !ai.pushX) m.yaw = dampAngle(m.yaw, yawFromDir(m.x - mx, m.z - mz), 8, dt);
+      if (ai.state !== 'chase' && ai.state !== 'attack' && ai.state !== 'special' && moved > 1e-4 && !ai.pushX) m.yaw = dampAngle(m.yaw, yawFromDir(m.x - mx, m.z - mz), 8, dt);
       m.walk += moved * def.stride;
       m.move = damp(m.move, Math.min(1, moved / Math.max(dt, 1e-4) / (def.speed * 0.5)), 10, dt);
       m.y = damp(m.y, g.world.surface(m.x, m.z), 18, dt);

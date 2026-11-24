@@ -25,25 +25,37 @@ export class Combat {
       g.bus.emit('miss', { target: p, text: 'Dodged' });
       return;
     }
-    if (Math.random() < p.dodge) { g.bus.emit('miss', { target: p, text: 'Dodged' }); return; }
-    const raw = monster.atk * (0.85 + Math.random() * 0.3);
-    const amount = Math.max(1, Math.round(raw * 30 / (30 + p.defense)));
-    this.damage(p, amount, monster, false);
+    this.hurt(monster, 1);
+  }
+
+  /**
+   * Something a monster did reaches the player: `mult` attacks' worth, less armour.
+   * Returns true if it hurt. `quiet` leaves out the word when it does not (a cloud ticks often).
+   */
+  hurt(monster, mult = 1, quiet = false) {
+    const g = this.game, p = g.player;
+    if (p.dead) return false;
+    if (p.invuln > 0 || Math.random() < p.dodge) { if (!quiet) g.bus.emit('miss', { target: p, text: 'Dodged' }); return false; }
+    const raw = monster.atk * mult * (0.85 + Math.random() * 0.3);
+    this.damage(p, Math.max(1, Math.round(raw * 30 / (30 + p.defense))), monster, false);
+    return true;
   }
 
   damage(target, amount, source, crit) {
     const g = this.game;
     if (target.dead) return;
+    if (target.guard) amount = Math.max(1, Math.round(amount * 0.2));        // tucked in its shell: blows glance off
     target.hp = Math.max(0, target.hp - amount);
     target.flash = 1;
-    if (target.action !== 1) { target.action = 3; target.actionT = 0; target.actionDur = 0.22; }
+    if (target.action !== 1 && !(target.ai && target.ai.state === 'special')) { target.action = 3; target.actionT = 0; target.actionDur = 0.22; }
     g.bus.emit('damage', { target, amount, crit, source });
     if (target.kind === 'monster') {
       const ai = target.ai;
       ai.target = g.player; ai.provoked = true;
       // a small shove away from the blow
       const dx = target.x - source.x, dz = target.z - source.z, d = Math.hypot(dx, dz) || 1;
-      ai.pushX = dx / d * (crit ? 3.2 : 1.8); ai.pushZ = dz / d * (crit ? 3.2 : 1.8);
+      const shove = target.guard || ai.state === 'special' ? 0 : crit ? 3.2 : 1.8;      // a creature mid-move holds its ground
+      ai.pushX = dx / d * shove; ai.pushZ = dz / d * shove;
       if (target.hp <= 0) this.slay(target);
     } else if (target.kind === 'player') {
       target.calm = 0;
