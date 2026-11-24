@@ -2,6 +2,7 @@
 
 import { SKILLS } from '../data/skills.js';
 import { dirFromYaw } from '../entities.js';
+import { rank } from '../data/talents.js';
 
 export class Skills {
   constructor(game) {
@@ -18,10 +19,11 @@ export class Skills {
     if (!s || p.dead || p.dash) return false;
     if (!this.unlocked(i)) { g.bus.emit('log', { text: `${s.name} unlocks at level ${s.unlock}.` }); return false; }
     if (this.cooldowns[i] > 0) return false;
-    if (p.focus < s.focus) { g.bus.emit('log', { text: 'Not enough focus.' }); g.bus.emit('deny'); return false; }
+    const cost = s.focus * (p.thrift ?? 1);
+    if (p.focus < cost) { g.bus.emit('log', { text: 'Not enough focus.' }); g.bus.emit('deny'); return false; }
     const aim = this.aim();
-    p.focus -= s.focus;
-    this.cooldowns[i] = s.cooldown;
+    p.focus -= cost;
+    this.cooldowns[i] = s.cooldown * (s.id === 'bolt' ? 1 - 0.2 * rank(p.sheet, 'tinder') : 1);
     p.calm = Math.min(p.calm, 2);
     s.cast(g, p, aim);
     g.bus.emit('skill', { id: s.id });

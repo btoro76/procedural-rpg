@@ -15,7 +15,7 @@ const STEPS = ['walk', 'look', 'fight', 'skill', 'bounty'];
 const TIPS = {
   dodge: { seconds: 9, when: (g) => g.hazards.warned },
   tonic: { seconds: 12, when: (g) => !g.player.dead && g.player.hp < g.player.maxHp * 0.45 && g.loot.count('tonic') > 0 },
-  points: { seconds: 12, when: (g) => g.player.sheet.points > 0 },
+  points: { seconds: 12, when: (g) => g.player.sheet.points > 0 || g.player.sheet.picks > 0 },
 };
 
 export class Tutorial {

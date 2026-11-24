@@ -128,7 +128,8 @@ export function createUI(game) {
   }
   bus.on('log', (d) => (d.big ? toast('Bounty complete', 'Return to Bram in Hearthmere') : log(d.text)));
   bus.on('pickup', (d) => { const it = ITEMS[d.item]; log(`Picked up <em>${it.name}</em>${d.n > 1 ? ` ×${d.n}` : ''}`); });
-  bus.on('levelup', (d) => { toast(`Level ${d.level}`, 'You feel stronger. Spend your points in the Character sheet.', 3.6); el.menu.querySelector('[data-open="character"]').classList.add('alert'); });
+  bus.on('talent', (d) => log(`Talent taken: <em>${d.name}</em>.`));
+  bus.on('levelup', (d) => { toast(`Level ${d.level}`, 'A talent to choose and points to spend, in the Character sheet.', 3.6); el.menu.querySelector('[data-open="character"]').classList.add('alert'); });
   bus.on('ui:toggle', (id) => { if (id === 'character') el.menu.querySelector('[data-open="character"]').classList.remove('alert'); });
   bus.on('site:enter', (s) => toast(s.name, s.kind === 'town' ? 'A safe hearth' : 'A waystone rests here'));
   bus.on('attune', (d) => log(`Attuned to <em>${d.name}</em>. You will return here.`));

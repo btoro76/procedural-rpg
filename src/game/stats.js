@@ -27,6 +27,8 @@ export function newPlayerSheet() {
     known: {},            // places a beacon has shown: key -> [x, z, name]
     ways: [{ x: 0, z: 0, name: 'Hearthmere' }],     // waystones attuned to: where the hero can travel
     boon: null,           // { id, left }
+    talents: {},          // talent id -> times taken (data/talents.js)
+    picks: 0, offer: null,     // talents still to choose, and the three on offer
     base: { might: 5, grace: 5, vigor: 5, mind: 5 },
     charms: [],           // equipped charm item ids (max 2)
     bag: [{ id: 'tonic', n: 3 }, { id: 'draught', n: 1 }],
@@ -39,6 +41,7 @@ export function newPlayerSheet() {
 export function derive(player) {
   const s = player.sheet;
   const a = { ...s.base };
+  const tal = (id) => (s.talents && s.talents[id]) || 0;       // times a talent has been taken (data/talents.js)
   for (const id of s.charms) for (const k in ITEMS[id].stats) a[k] += ITEMS[id].stats[k];
   player.attr = a;
   player.level = s.level;
@@ -47,7 +50,7 @@ export function derive(player) {
   const boon = s.boon ? s.boon.id : '';
   if (boon === 'hale') player.maxHp = Math.round(player.maxHp * 1.25);
   player.attack = (7 + a.might * 1.7 + s.level * 1.3) * (boon === 'kindled' ? 1.2 : 1);
-  player.speedMul = boon === 'fleet' ? 1.2 : 1;
+  player.speedMul = (boon === 'fleet' ? 1.2 : 1) * (1 + 0.06 * tal('feet'));
   player.attackSpeed = Math.min(2.3, 1.2 + a.grace * 0.022);
   player.crit = Math.min(0.5, 0.04 + a.grace * 0.006);
   player.dodge = Math.min(0.3, a.grace * 0.005);
@@ -56,6 +59,10 @@ export function derive(player) {
   player.hpRegen = 0.5 + a.vigor * 0.09;
   player.focusRegen = 1.6 + a.mind * 0.13;
   player.hp = Math.min(player.hp, player.maxHp);
+  player.crit += 0.06 * tal('keen');
+  player.ward = 1 - 0.08 * tal('hide');              // what is left of a blow
+  player.thrift = 1 - 0.12 * tal('thrift');          // what a skill costs
+  player.forage = 1 + 0.25 * tal('forage');
   player.focus = Math.min(player.focus ?? 0, player.maxFocus);
 }
 

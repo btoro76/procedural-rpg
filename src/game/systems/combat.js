@@ -2,6 +2,7 @@
 // particles, numbers, sound) reacts to the events emitted here.
 
 import { xpFactor, xpToNext, derive, POINTS_PER_LEVEL } from '../stats.js';
+import { rank, rollOffer } from '../data/talents.js';
 
 export class Combat {
   constructor(game) {
@@ -36,7 +37,7 @@ export class Combat {
     const g = this.game, p = g.player;
     if (p.dead) return false;
     if (p.invuln > 0 || Math.random() < p.dodge) { if (!quiet) g.bus.emit('miss', { target: p, text: 'Dodged' }); return false; }
-    const raw = monster.atk * mult * (0.85 + Math.random() * 0.3);
+    const raw = monster.atk * mult * (0.85 + Math.random() * 0.3) * (p.ward ?? 1);
     this.damage(p, Math.max(1, Math.round(raw * 30 / (30 + p.defense))), monster, false);
     return true;
   }
@@ -71,6 +72,7 @@ export class Combat {
     if (p.target === m) p.target = null;
     const gained = Math.max(1, Math.round(m.xp * xpFactor(p.level, m.level)));
     g.bus.emit('monster:died', m);
+    p.focus = Math.min(p.maxFocus, p.focus + 5 * rank(p.sheet, 'second'));
     g.loot.dropFrom(m);
     this.grantXp(gained);
     g.bounties.onKill(m);
@@ -84,6 +86,9 @@ export class Combat {
       s.xp -= xpToNext(s.level);
       s.level++;
       s.points += POINTS_PER_LEVEL;
+      s.picks = (s.picks || 0) + 1;                      // and a talent to choose
+      if (!s.offer) s.offer = rollOffer(s);
+      if (!s.offer) s.picks = 0;
       derive(g.player);
       g.player.hp = g.player.maxHp; g.player.focus = g.player.maxFocus;
       g.bus.emit('levelup', { level: s.level });

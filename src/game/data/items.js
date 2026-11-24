@@ -23,3 +23,13 @@ export const ITEMS = {
 };
 
 export const SHOP_STOCK = ['tonic', 'draught'];
+
+// What a trader will make from what you carry: the thing, what it takes, and the fee.
+export const RECIPES = [
+  { id: 'tonic', needs: { sprout_leaf: 3 }, glint: 4 },
+  { id: 'draught', needs: { wisp_ember: 2 }, glint: 6 },
+  { id: 'charm_might', needs: { hog_bristle: 6, snap_claw: 3 }, glint: 40 },
+  { id: 'charm_vigor', needs: { puff_spore: 6, crag_shard: 3 }, glint: 40 },
+  { id: 'charm_grace', needs: { snap_claw: 5, sprout_leaf: 5 }, glint: 40 },
+  { id: 'charm_mind', needs: { wisp_ember: 5, puff_spore: 4 }, glint: 40 },
+];

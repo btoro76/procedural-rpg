@@ -5,6 +5,8 @@
 import { ATTRIBUTES, BOONS, derive, xpToNext } from '../game/stats.js';
 import { ITEMS, SHOP_STOCK } from '../game/data/items.js';
 import { SKILLS } from '../game/data/skills.js';
+import { TALENTS, rank, takeTalent } from '../game/data/talents.js';
+import { RECIPES } from '../game/data/items.js';
 import { VIEWS } from '../config.js';
 import { itemIcon } from './icons.js';
 
@@ -19,7 +21,7 @@ export class Panels {
     bus.on('ui:toggle', (id) => this.toggle(id));
     bus.on('ui:close', () => this.closeAll());
     bus.on('npc:talk', (npc) => { this.trader = npc; this.show(npc.role === 'shop' ? 'shop' : 'bounty'); });
-    for (const ev of ['bag:changed', 'levelup', 'trade', 'bounty:changed', 'xp', 'attune', 'found', 'boon']) bus.on(ev, () => this.refresh());
+    for (const ev of ['bag:changed', 'levelup', 'trade', 'bounty:changed', 'xp', 'attune', 'found', 'boon', 'talent']) bus.on(ev, () => this.refresh());
 
     root.addEventListener('click', (e) => {
       const b = e.target.closest('[data-act]');
@@ -88,6 +90,8 @@ export class Panels {
     else if (name === 'accept') g.bounties.accept(+arg);
     else if (name === 'abandon') g.bounties.abandon();
     else if (name === 'claim') g.bounties.claim();
+    else if (name === 'talent') { if (takeTalent(s, arg)) { derive(p); g.bus.emit('talent', { id: arg, name: TALENTS[arg].name }); g.bus.emit('ui:click'); } }
+    else if (name === 'craft') g.loot.craft(+arg);
     else if (name === 'guide') { this.closeAll(); g.bus.emit('guide:restart'); return; }
     else if (name === 'travel') { if (g.discover.travel(+arg)) this.closeAll(); return; }
     else if (name === 'cam') {
@@ -121,8 +125,17 @@ export class Panels {
     }).join('');
     const skills = SKILLS.map((k) => `<div class="attr" style="grid-template-columns:1fr auto"><div><strong>${k.name}</strong><small>${k.desc}</small></div>
       <div class="dim">${s.level >= k.unlock ? (this.game.touch ? 'Ready' : `Key ${k.key}`) : `Level ${k.unlock}`}</div></div>`).join('');
+    // a talent to choose: three on offer, one to take
+    const numeral = ['', 'I', 'II', 'III'];
+    const offer = s.picks > 0 && s.offer ? `<div class="label">Choose a talent${s.picks > 1 ? ` (${s.picks} to choose)` : ''}</div>` + s.offer.map((id) => {
+      const t = TALENTS[id], r = rank(s, id);
+      return `<div class="offer"><strong>${t.name}${t.max > 1 ? ` ${numeral[r + 1]}` : ''}</strong><small>${t.desc}</small>
+        <button type="button" class="btn primary" data-act="talent" data-arg="${id}" aria-label="Choose ${t.name}">Choose</button></div>`;
+    }).join('') : '';
+    const owned = Object.keys(s.talents || {}).map((id) => `${TALENTS[id].name}${TALENTS[id].max > 1 ? ' ' + numeral[rank(s, id)] : ''}`).join(', ');
     return `
       <div class="row"><p>Level ${s.level} Wayfarer</p><p class="dim">${s.xp} / ${xpToNext(s.level)} xp</p></div>
+      ${offer}
       <p class="${s.points ? '' : 'dim'}">${s.points ? `<strong style="color:var(--red-ink)">${s.points} points</strong> to spend.` : 'Gain a level to earn attribute points.'}</p>
       ${rows}
       <div class="sheet">
@@ -131,7 +144,8 @@ export class Panels {
         <div><span>Critical</span>${(p.crit * 100).toFixed(0)}%</div><div><span>Dodge</span>${(p.dodge * 100).toFixed(0)}%</div>
         <div><span>Armor</span>${p.defense.toFixed(0)}</div><div><span>Skill power</span>${(p.power * 100).toFixed(0)}%</div>
       </div>
-      <div class="label">Skills</div>${skills}`;
+      <div class="label">Skills</div>${skills}
+      <div class="label">Talents</div><p class="${owned ? '' : 'dim'}">${owned || 'Each level brings a choice of three.'}</p>`;
   }
 
   cells(mode) {
@@ -172,6 +186,13 @@ export class Panels {
     return `
       <div class="row"><p>“${this.trader && this.trader.id === 'tinker' ? 'Bits and bottles, all honest.' : 'Fresh tonics, fair prices.'}”</p><span class="coin">${s.glint} glint</span></div>
       ${stock}
+      <div class="label">Made from what you carry</div>
+      ${RECIPES.map((r, i) => {
+        const needs = Object.keys(r.needs).map((id) => `${ITEMS[id].name} ${Math.min(this.game.loot.count(id), r.needs[id])}/${r.needs[id]}`).join(', ');
+        const can = s.glint >= r.glint && Object.keys(r.needs).every((id) => this.game.loot.count(id) >= r.needs[id]);
+        return `<div class="offer"><strong>${ITEMS[r.id].name}</strong><small>${needs}</small>
+          <button type="button" class="btn" data-act="craft" data-arg="${i}" ${can ? '' : 'disabled'} aria-label="Make ${ITEMS[r.id].name} for ${r.glint} glint">Make · ${r.glint}</button></div>`;
+      }).join('')}
       <div class="row"><div class="label">Your bag — ${this.game.touch ? 'tap' : 'click'} to sell one</div>
         <button type="button" class="btn" data-act="sellmats" ${mats ? '' : 'disabled'}>Sell materials · ${mats}</button></div>
       <div class="grid">${this.cells('sell')}</div>

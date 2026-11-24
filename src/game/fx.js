@@ -112,7 +112,7 @@ export class Fx {
     this.spawn('ring', e.x, e.y + 0.08, e.z, { size: 1.5, life: 0.4, color, ground: true });
   }
   levelUp(e) {
-    this.spawn('beam', e.x, e.y + 2.6, e.z, { size: 1.0, aspect: 3.2, life: 1.3, color: GOLD, alpha: 1.3, follow: e, dy: 2.6 });
+    this.spawn('beam', e.x, e.y + 2.4, e.z, { size: 0.42, aspect: 5.5, life: 1.0, color: GOLD, alpha: 1.3, follow: e, dy: 2.4 });    // a slim ray, not a wall of light
     for (let k = 0; k < 3; k++) setTimeout(() => this.spawn('ring', e.x, e.y + 0.08, e.z, { size: 2.6, life: 0.7, color: GOLD, ground: true }), k * 160);
     for (let i = 0; i < 26; i++) {
       const a = Math.random() * 6.283, r = 0.3 + Math.random() * 0.8;
@@ -179,7 +179,7 @@ export class Fx {
       else if (d.entity.kind === 'player') this.dust(d.entity.x, d.entity.y, d.entity.z, 1);
     });
     bus.on('moveclick', (d) => this.click(d.x, d.y, d.z));
-    bus.on('attune', (d) => { this.heal(this.game.player, SKY); this.spawn('beam', d.x, d.y + 3, d.z, { size: 1.2, aspect: 3, life: 1.4, color: SKY }); });
+    bus.on('attune', (d) => { this.heal(this.game.player, SKY); this.spawn('beam', d.x, d.y + 3, d.z, { size: 0.5, aspect: 6, life: 1.2, color: SKY }); });
     bus.on('dash', (d) => { this.dust(d.x, d.y, d.z, 5, LEAFY); this.spawn('ring', d.x, d.y + 0.08, d.z, { size: 1.4, life: 0.35, color: WHITE, ground: true }); });
     bus.on('bolt:hit', (d) => { this.hit(d.x, d.y, d.z, FLAME, true); this.spawn('ring', d.x, d.y, d.z, { size: 1.6, life: 0.35, color: FLAME }); });
     // A beast warns before it strikes, in its own colour of danger: a ring for an ordinary blow,

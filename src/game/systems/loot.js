@@ -1,7 +1,7 @@
 // Loot and the bag: what monsters drop, picking it up by walking over it,
 // using, selling, buying and wearing items.
 
-import { ITEMS } from '../data/items.js';
+import { ITEMS, RECIPES } from '../data/items.js';
 import { makeEntity, pencils } from '../entities.js';
 import { derive } from '../stats.js';
 
@@ -18,7 +18,7 @@ export class Loot {
     for (const [id, chance, range] of m.def.loot) {
       if (Math.random() > chance * (m.elite ? 2.5 : 1)) continue;
       let n = range[0] + Math.floor(Math.random() * (range[1] - range[0] + 1));
-      if (id === 'glint') n = Math.round(n * (1 + (m.level - 1) * 0.3) * (m.elite ? 4 : 1));
+      if (id === 'glint') n = Math.round(n * (1 + (m.level - 1) * 0.3) * (m.elite ? 4 : 1) * (g.player.forage ?? 1));
       const a = Math.random() * 6.283, r = 0.4 + Math.random() * 0.9;
       const item = ITEMS[id];
       const e = makeEntity('drop', 'drop', {
@@ -133,6 +133,23 @@ export class Loot {
     s.glint += total;
     if (total) this.game.bus.emit('trade', { total });
     return total;
+  }
+
+  /** Makes the i-th recipe from what is carried. */
+  craft(i) {
+    const g = this.game, s = g.player.sheet, r = RECIPES[i];
+    if (!r) return false;
+    for (const id in r.needs) if (this.count(id) < r.needs[id]) { g.bus.emit('log', { text: 'You do not carry enough for that.' }); g.bus.emit('deny'); return false; }
+    if (s.glint < r.glint) { g.bus.emit('log', { text: 'Not enough glint.' }); g.bus.emit('deny'); return false; }
+    // room for the thing made: its stack exists, or a slot is free, or making it empties one
+    const frees = Object.keys(r.needs).some((id) => this.count(id) === r.needs[id]);
+    if (!this.count(r.id) && s.bag.length >= BAG_SLOTS && !frees) { g.bus.emit('log', { text: 'Your bag is full.' }); return false; }
+    for (const id in r.needs) this.remove(id, r.needs[id]);
+    s.glint -= r.glint;
+    this.add(r.id, 1);
+    g.bus.emit('trade', { made: r.id });
+    g.bus.emit('log', { text: `Made: <em>${ITEMS[r.id].name}</em>.` });
+    return true;
   }
 
   buy(id) {

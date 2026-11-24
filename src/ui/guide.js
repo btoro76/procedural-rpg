@@ -11,7 +11,7 @@ const WORDS = {
   bounty: ['Click Bram, the warden, and take a bounty from his board.', 'Tap Bram, the warden, and take a bounty from his board.'],
   'tip:dodge': ['Mustard hatching on the ground means a blow is coming there. Step out of it.', 'Mustard hatching on the ground means a blow is coming there. Step out of it.'],
   'tip:tonic': ['Low on health: press R to drink a Red Tonic.', 'Low on health: tap the red flask.'],
-  'tip:points': ['You have points to spend: press C for your character sheet.', 'You have points to spend: open your character sheet.'],
+  'tip:points': ['A new level: press C to choose a talent and spend your points.', 'A new level: open your character sheet to choose a talent and spend your points.'],
 };
 // the control each step is about: [with a mouse, on a touch screen]
 const HINTS = {
