@@ -11,6 +11,7 @@ import { SKILL_ICONS, MENU_ICONS, ACT_ICONS, itemIcon } from './icons.js';
 import { Plates } from './plates.js';
 import { Panels } from './panels.js';
 import { createStick, watchTouch } from './touch.js';
+import { createGuide } from './guide.js';
 
 const $ = (id) => document.getElementById(id);
 const HOURS = [[5, 'Dawn'], [8, 'Morning'], [12, 'Midday'], [17, 'Afternoon'], [20, 'Dusk'], [24, 'Night']];
@@ -169,13 +170,15 @@ export function createUI(game) {
     layout();
     // a phone's picture is small, so the camera stands closer
     Object.assign(game.camera.goal, { pitch: 0.8, distance: game.touch ? 12.5 : 15.5 });
-    if (!hadSave) setTimeout(() => toast('Hearthmere', game.touch ? 'Tap the ground to walk. Tap a creature to fight it.' : 'Click the ground to walk. Click a creature to fight it.', 5), 900);
   });
   $('btn-new').addEventListener('click', () => { clearSave(); game.started = false; location.search = '?new'; });
   game.look.fadeGoal = 1;
   // a wide, low view of the town turns slowly behind the title
   Object.assign(game.camera.goal, { pitch: 0.3, distance: 32 });
   Object.assign(game.camera, { pitch: 0.3, distance: 32 });
+
+  // ---- the guide: first steps and tips (a new journey starts with them)
+  createGuide(game, toast, log);
 
   // ---- per-frame refresh
   bus.on('frame', (dt) => {

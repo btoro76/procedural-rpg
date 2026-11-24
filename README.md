@@ -40,7 +40,7 @@ node build.js
 | 1 2 3 4 | Skills (aim at the target, or at the cursor) |
 | R / F | Drink a Red Tonic / Blue Draught |
 | Space / Tab | Attack the nearest creature / pick the next one |
-| Right drag, Q / E | Turn and tilt the view |
+| Right drag, Q / E | Turn and tilt the view, from high overhead down to low behind the hero |
 | Wheel | Zoom |
 | C / B / V | Character sheet / bag / buttons for the view |
 
@@ -61,6 +61,8 @@ Held sideways, the picture fills the screen and the controls sit in its corners.
 | --- | --- |
 | ![Upright on a phone](docs/phone-upright.jpg) | ![Sideways on a phone](docs/phone-sideways.jpg) |
 
+A new journey opens with five first steps, each finished by doing it: walk to a ring, turn the view, fight a practice creature, use a skill, take a bounty. A plate says what to try, the button to press is ringed in red, and an arrow at the edge of the picture points to a goal that is out of sight. It can be skipped, and the How to Play sheet brings it back. Later, a one-line tip appears the first time it is needed (a flask when health runs low, the character sheet when there are points to spend).
+
 ## How it is drawn
 
 1. **World pass** — one full-screen raymarch of the terrain heightfield, every prop (trees, rocks, houses are signed-distance shapes) and the sea. It does not produce a picture. For every pixel it decides *what is to be drawn*: which pencil, how firmly it is laid, how much shading goes over it, and what pen marks sit on it (stone joints, roof courses, leaf scribble). It runs at an internal resolution that adapts to measured GPU time.
@@ -68,7 +70,7 @@ Held sideways, the picture fills the screen and the controls sit in its corners.
 3. **Entity pass** — each creature is a small distance-field model raymarched inside a camera-facing quad at full device resolution, already drawn in the same hand: bold contour, pencil hatching that rides with the figure and is re-laid six times a second (a quiet boil), poses stepped on twos. Effects are pen-and-paper marks in the same layer.
 4. **Final pass** — draws the page at device resolution: paper with tooth, the pencil lay in strokes, a second lay of a deeper pencil for shade, pen doodles (grass tufts, ripples), the pen along the contours (wobbling, pressing unevenly, sometimes going over twice), then the figures on top. A hero hidden behind scenery is shown as a pen outline, never as a faded figure. The minimap is a little paper map drawn here too.
 
-Hatching is laid in *paper coordinates*: positions on camera-facing sheets, projected on the camera's right and up axes. Strokes keep one slant on screen, yet stay glued to the world while the camera travels; stroke size is chosen per depth from nested levels, so hatching is the same width near and far. There is no bloom, blur or tone mapping: nothing is lighter than the paper, night is drawn with indigo pencils and a lamp is a pool of bare paper, and distance is drawn by laying less until the page is blank.
+Hatching is laid in *paper coordinates*: positions on flat sheets, projected on the right and up axes of a held view direction. That direction stays put while the camera travels or turns, so strokes stay glued to the world and never swim; once the view has turned about 17 degrees away from it, or has come to rest, a fresh one fades in over a fraction of a second. Strokes therefore keep the page's one slant to within a few degrees, and exactly at rest. Stroke size is chosen per depth from nested levels, so hatching is the same width near and far. There is no bloom, blur or tone mapping: nothing is lighter than the paper, night is drawn with indigo pencils and a lamp is a pool of bare paper, and distance is drawn by laying less until the page is blank.
 
 The CPU generates the world in 32×32 chunks (`src/world/worldgen.js`) and uploads them into five wrap-around textures; the shader reads those same textures, so gameplay and picture always agree.
 
@@ -103,10 +105,10 @@ src/
     archetypes/       creature models (GLSL)
   game/               simulation
     game.js           owns state, runs systems in order
-    systems/          controls, player, ai, combat, skills, loot, spawner, bounties
+    systems/          controls, player, ai, combat, skills, loot, spawner, bounties, tutorial
     data/             monsters, items, skills
     fx.js  view.js  stats.js  environment.js  save.js
-  ui/                 HUD, nameplates, panels, touch stick, styles (three layouts in ui.css)
+  ui/                 HUD, nameplates, panels, guide (first steps), touch stick, styles (three layouts in ui.css)
   audio/              synthesized sound and music
 ```
 
@@ -151,7 +153,7 @@ The only image files are the page's own, in `static/`: the favicon and app icons
 
 - Single player. Player input already flows through `player.intent` and events, which is the seam where a network layer would attach.
 - Movement steers and slides around obstacles; there is no long-range pathfinding yet.
-- Turning the camera re-lays the hatching (it is anchored to the world only while the view keeps its direction).
+- While the view turns, strokes on tall things (a tree's crown, a roof) drift a little against them, because each prop is hatched on one flat sheet; the ground does not drift at all.
 - The world is drawn out to about 108 units (`WORLD.VIEW`). Raising `WORLD.TEX` to 512 doubles the loaded area, but far rays then run out of march steps and the wide view costs about twice the GPU time; a coarser second ring of terrain is the proper way to see farther.
 - Positions are single-precision floats in shaders, so detail noise will coarsen tens of kilometres from the start; a floating render origin would lift that.
 - Phones and tablets start on lighter settings (fewer march steps, lower internal resolution). The touch interface is tested in desktop Chrome at phone sizes with scripted touches, not yet on real phones.

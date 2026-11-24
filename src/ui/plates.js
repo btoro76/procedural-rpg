@@ -91,12 +91,12 @@ export class Plates {
       const dist = Math.hypot(e.x - p.x, e.z - p.z);
       let show = false;
       if (e.kind === 'npc') show = dist < 30;
-      else if (e.kind === 'monster') show = dist < 40 && (e.hover || e === p.target || e.hp < e.maxHp || e.elite || e.ai.state === 'chase' || e.ai.state === 'attack');
+      else if (e.kind === 'monster') show = dist < 40 && (e.marked || e.hover || e === p.target || e.hp < e.maxHp || e.elite || e.ai.state === 'chase' || e.ai.state === 'attack');
       else if (e.kind === 'drop') show = dist < 9 && e.age > 0.4;
       if (!show) continue;
       const s = cam.project(e.x, e.y + e.height + 0.25 + e.lift, e.z);
       if (!s || s.x < -0.1 || s.x > 1.1 || s.y < -0.1 || s.y > 1.1) continue;
-      const rank = e === p.target ? 0 : e.hover ? 1 : e.kind === 'npc' ? 2 + dist * 0.01 : e.kind === 'drop' ? 200 + dist : (e.elite ? 5 : 10) + dist;
+      const rank = e === p.target ? 0 : e.marked ? 0.5 : e.hover ? 1 : e.kind === 'npc' ? 2 + dist * 0.01 : e.kind === 'drop' ? 200 + dist : (e.elite ? 5 : 10) + dist;
       want.push({ e, x: s.x * W, y: s.y * H, rank });
     }
     want.sort((a, b) => a.rank - b.rank);
@@ -115,6 +115,7 @@ export class Plates {
         n = { el, fill: el.querySelector('i'), hp: -1, w: el.offsetWidth, h: el.offsetHeight, lift: 0, shown: true };
         this.nodes.set(e.id, n);
       }
+      if (n.goal !== !!e.marked) { n.goal = !!e.marked; n.el.classList.toggle('goal', n.goal); }     // the guide's goal is ringed in red
       // find room: straight above the creature, or lifted over whatever slip is in the way
       const l = it.x - n.w / 2, r = it.x + n.w / 2;
       let need = 0, room = false;

@@ -86,6 +86,7 @@ export class Panels {
     else if (name === 'accept') g.bounties.accept(+arg);
     else if (name === 'abandon') g.bounties.abandon();
     else if (name === 'claim') g.bounties.claim();
+    else if (name === 'guide') { this.closeAll(); g.bus.emit('guide:restart'); return; }
     else if (name === 'cam') {
       const cam = g.camera;
       if (arg === 'left') cam.rotate(0.5, 0); else if (arg === 'right') cam.rotate(-0.5, 0);
@@ -209,7 +210,8 @@ export class Panels {
       <kbd>Flasks</kbd><span>Drink a Red Tonic or a Blue Draught.</span>
       <kbd>Drag / pinch</kbd><span>Drag the picture to turn and tilt the view, pinch to zoom. The View menu has buttons for both.</span>
     </div>
-    <p class="dim">Loot is picked up by walking over it. Waystones mend you and become the place you return to. The farther from Hearthmere, the stronger the wilds.</p>`;
+    <p class="dim">Loot is picked up by walking over it. Waystones mend you and become the place you return to. The farther from Hearthmere, the stronger the wilds.</p>
+    <button type="button" class="btn" data-act="guide">Show me the first steps again</button>`;
     return `<div class="keys-list">
       <kbd>Left click</kbd><span>Walk to a spot, attack a creature, talk to townsfolk. Hold to keep walking.</span>
       <kbd>W A S D</kbd><span>Walk by hand.</span>
@@ -220,6 +222,7 @@ export class Panels {
       <kbd>Wheel</kbd><span>Zoom.</span>
       <kbd>C / B / V</kbd><span>Character sheet, bag, and buttons for the view.</span>
     </div>
-    <p class="dim">Loot is picked up by walking over it. Waystones mend you and become the place you return to. The farther from Hearthmere, the stronger the wilds.</p>`;
+    <p class="dim">Loot is picked up by walking over it. Waystones mend you and become the place you return to. The farther from Hearthmere, the stronger the wilds.</p>
+    <button type="button" class="btn" data-act="guide">Show me the first steps again</button>`;
   }
 }

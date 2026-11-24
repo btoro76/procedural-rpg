@@ -5,7 +5,7 @@
 //   lay   the pencil (rgb) and how firmly it is laid
 //   gbuf  normal, ray distance, object id            (for contour lines and compositing)
 //   mark  shading 0..1, pen marks 0..1, grass 0..1, kind of lay (0 hatch, 1 broad pulls, 2 water)
-//   sheet the view depth of the flat sheet this pixel's hatching lies on: the ground's own
+//   sheet the depth (along each of the two paper directions) of the flat sheet this pixel's hatching lies on: the ground's own
 //         depth, or one depth for a whole prop, so its strokes stay straight on the page
 
 import { Program, drawFullscreen } from '../gl.js';
@@ -104,7 +104,8 @@ void main() {
 
   Surf s = newSurf();
   vec3 N = vec3(0.0, 1.0, 0.0);
-  float depth = hit.t, id = 0.0, shade = 0.0, grass = 0.0, kind = 0.0, sheet = 8.0;
+  float depth = hit.t, id = 0.0, shade = 0.0, grass = 0.0, kind = 0.0;
+  vec2 sheet = vec2(8.0);       // depth of this pixel's hatching sheet along the two paper directions
 
   if (hit.kind == 0 && !wet) {
     float skyInk;
@@ -129,7 +130,7 @@ void main() {
       grass = gGrass;
       kind = s.soft;
       id = 0.02;
-      sheet = dot(rd, uCamFwd) * hit.t;
+      sheet = vec2(dot(rd, uPaperFwd), dot(rd, uPaperFwdB)) * hit.t;
     } else if (hit.kind == 2) {
       mat2 pm = propRot(hit.pr);
       vec3 q = toProp(p, hit.pr, pm);
@@ -159,7 +160,8 @@ void main() {
       lightSurf(s, p, N, sh, ao, shade);
       kind = s.soft;
       id = 0.1 + 0.9 * hash12(floor(hit.pr.base.xz * 2.0 + 0.5));   // same id from every cell the prop spans
-      sheet = max(dot(hit.pr.base + vec3(0.0, 1.5 * hit.pr.scale, 0.0) - ro, uCamFwd), 1.0);
+      vec3 stand = hit.pr.base + vec3(0.0, 1.5 * hit.pr.scale, 0.0) - ro;     // a flat sheet standing in the prop
+      sheet = max(vec2(dot(stand, uPaperFwd), dot(stand, uPaperFwdB)), 1.0);
     } else {
       s.albedo = P_SLATE; s.cover = 0.7;       // open sea beyond the loaded land
     }
@@ -180,7 +182,7 @@ void main() {
       shade = (1.0 - cloudShadow(wp.xz)) * 0.6 * (1.0 - foam);
       N = vec3(0.0, 1.0, 0.0);
       depth = tw; p = wp; id = 0.05; grass = 0.0;
-      sheet = dot(rd, uCamFwd) * tw;
+      sheet = vec2(dot(rd, uPaperFwd), dot(rd, uPaperFwdB)) * tw;
       kind = 2.0 - foam;
     }
     // distance: a paler, thinner lay; then the edge of the loaded world left as paper
@@ -195,7 +197,7 @@ void main() {
   oLay = vec4(s.albedo, s.cover);
   oGbuf = vec4(octEncode(N), depth, id);
   oMark = vec4(shade, s.ink, grass, kind);
-  oSheet = vec4(sheet, 0.0, 0.0, 1.0);
+  oSheet = vec4(sheet, 0.0, 1.0);
 }
 `;
 

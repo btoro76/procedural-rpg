@@ -24,6 +24,7 @@ import { Skills } from './systems/skills.js';
 import { Spawner } from './systems/spawner.js';
 import { Loot } from './systems/loot.js';
 import { Bounties } from './systems/bounties.js';
+import { Tutorial } from './systems/tutorial.js';
 import { loadSave, writeSave } from './save.js';
 
 export class Game {
@@ -69,7 +70,8 @@ export class Game {
     this.spawner = new Spawner(this);
     this.view = new View(this);
     // order matters: intent -> bodies -> consequences -> population
-    this.systems = [this.controls, new PlayerSystem(this), new MonsterAI(this), this.skills, this.loot, this.spawner, this.fx];
+    this.tutorial = new Tutorial(this);
+    this.systems = [this.controls, new PlayerSystem(this), new MonsterAI(this), this.skills, this.loot, this.spawner, this.tutorial, this.fx];
     this.bounties.refresh();
 
     this.camera.target = [px, this.player.y + 1, pz];

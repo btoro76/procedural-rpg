@@ -10,6 +10,8 @@
 
 import { RENDER } from '../config.js';
 import { clamp } from '../core/math.js';
+
+const PAPER_TURN = 0.3;      // radians the view may turn before the hatching is laid afresh (about 17 degrees)
 import { LEAF_PALETTE } from '../world/biomes.js';
 import { createContext, Target } from './gl.js';
 import './glsl/common.js';
@@ -46,6 +48,9 @@ export class Renderer {
     this.leafPal = new Float32Array(LEAF_PALETTE.flat());
     this.pencil = new Float32Array(4);
     this.paperAnchor = new Float32Array(3);
+    // The paper direction: the view direction the hatching is laid against. It is held while
+    // the camera turns and replaced, through a short fade, by a fresh one (see holdPaper).
+    this.paper = { a: null, b: null, mix: 0, fade: 0, still: 0, last: null };
     this.scale = opts.lite ? RENDER.SCALE_LITE : RENDER.SCALE_START;
     this.perf = { ema: 16.7, gpu: 0, timer: 0, calm: 0, futile: 0, lastDown: 0, hold: 0 };
     this.gpuTimer = gl.getExtension('EXT_disjoint_timer_query_webgl2');
@@ -143,6 +148,56 @@ export class Renderer {
     p.set('uRockCol', e.rockCol).set('uLeafPal', this.leafPal);
     p.set('uLightPos', f.lightPos).set('uLightCol', f.lightCol).set('uLightCount', f.lightCount);
     p.set('uPencil', this.pencil).set('uPaperAnchor', this.paperAnchor);
+    const pa = this.paper.a, pb = this.paper.b || this.paper.a;
+    p.set('uPaperRight', pa.right).set('uPaperUp', pa.up).set('uPaperFwd', pa.fwd);
+    p.set('uPaperRightB', pb.right).set('uPaperUpB', pb.up).set('uPaperFwdB', pb.fwd).set('uPaperMix', this.paper.mix);
+  }
+
+  /**
+   * Keeps the hatching still on the world while the view turns. Strokes are laid against a
+   * held copy of the camera's axes; turning the camera leaves that copy alone, so nothing
+   * swims. Once the view has turned PAPER_TURN away from it, or has rested a moment a little
+   * off it, a fresh copy fades in over a fraction of a second. While turning, the fresh copy
+   * is taken a little ahead of the camera, so the view passes through it rather than leaving
+   * it behind at once.
+   */
+  holdPaper(cam, dt) {
+    const P = this.paper;
+    const copy = (c) => ({ right: [...c.right], up: [...c.up], fwd: [...c.fwd] });
+    if (!P.a) { P.a = copy(cam); P.last = [...cam.fwd]; return; }
+    const dot = (u, v) => u[0] * v[0] + u[1] * v[1] + u[2] * v[2];
+    const turn = (u, v) => Math.acos(Math.min(1, Math.max(-1, dot(u, v))));
+    const speed = turn(cam.fwd, P.last) / Math.max(dt, 1e-4);        // radians a second
+    P.last = [...cam.fwd];
+    P.still = speed < 0.03 ? P.still + dt : 0;
+    if (P.b) {
+      P.mix += dt / P.fade;
+      if (P.mix >= 1) { P.a = P.b; P.b = null; P.mix = 0; }
+      return;
+    }
+    const off = Math.max(turn(cam.fwd, P.a.fwd), turn(cam.right, P.a.right));
+    if (off > PAPER_TURN) {
+      // ahead of the turn: where the camera will be a little after the fade
+      const lead = Math.min(PAPER_TURN * 0.6, speed * 0.3);
+      const k = off > 1e-4 ? lead / off : 0;
+      const ahead = { right: [0, 0, 0], up: [0, 0, 0], fwd: [0, 0, 0] };
+      for (const axis of ['right', 'fwd']) {
+        let n = 0;
+        for (let i = 0; i < 3; i++) { ahead[axis][i] = cam[axis][i] + (cam[axis][i] - P.a[axis][i]) * k; n += ahead[axis][i] ** 2; }
+        n = Math.sqrt(n);
+        for (let i = 0; i < 3; i++) ahead[axis][i] /= n;
+      }
+      // square the three axes up again
+      const r = ahead.right, f = ahead.fwd, d = dot(r, f);
+      let n = 0;
+      for (let i = 0; i < 3; i++) { r[i] -= f[i] * d; n += r[i] ** 2; }
+      n = Math.sqrt(n);
+      for (let i = 0; i < 3; i++) r[i] /= n;
+      ahead.up = [r[1] * f[2] - r[2] * f[1], r[2] * f[0] - r[0] * f[2], r[0] * f[1] - r[1] * f[0]];
+      P.b = ahead; P.mix = 0; P.fade = 0.2;
+    } else if (off > 0.012 && P.still > 0.3) {
+      P.b = copy(cam); P.mix = 0; P.fade = 0.45;                   // at rest: settle onto the page's exact slant
+    }
   }
 
   /**
@@ -151,6 +206,8 @@ export class Renderer {
    */
   render(frame) {
     const gl = this.gl, t = this.targets, s = this.size;
+    this.holdPaper(frame.camera, Math.max(0, frame.time - (this.lastTime ?? frame.time)));
+    this.lastTime = frame.time;
     this.frame = frame;
     frame.dpr = s.dpr;
     // the pencil: a pixel's world size per unit of depth, stroke pitch in pixels, boil seed, device pixel ratio

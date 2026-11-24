@@ -11,9 +11,11 @@ import { registerChunk } from '../shaderlib.js';
 //  - light is reserved paper; distance is a paler, thinner lay, never blur.
 //
 // Hatching is laid in "paper coordinates": world positions projected on the
-// camera's right and up axes. Strokes therefore keep one slant on screen, yet
-// stay glued to the world while the camera travels (they only re-lay when the
-// view is turned).
+// right and up axes of a held view direction, the "paper direction". The
+// renderer holds it still while the camera turns, so strokes stay glued to the
+// world (a turning view never makes them swim), and lets a fresh direction fade
+// in when the view has turned some way or has come to rest. Strokes therefore
+// keep the page's one slant to within a few degrees, exactly so at rest.
 registerChunk('pencil', /* glsl */ `
 const vec3 PAPER = vec3(0.910, 0.886, 0.831);          // the page (232,226,212)
 const vec3 INK_SEPIA = vec3(0.384, 0.235, 0.118);      // the pen on scenery
@@ -36,6 +38,9 @@ const vec3 P_MUSTARD = vec3(0.886, 0.690, 0.204), P_VERMILION = vec3(0.839, 0.27
 
 uniform vec4 uPencil;        // world size of a pixel per unit of view depth, stroke pitch in px, boil seed, device pixel ratio
 uniform vec3 uPaperAnchor;   // paper coordinates are measured from here (keeps the numbers small)
+uniform vec3 uPaperRight, uPaperUp, uPaperFwd;        // the held paper direction
+uniform vec3 uPaperRightB, uPaperUpB, uPaperFwdB;     // the one fading in over it
+uniform float uPaperMix;                              // 0 = only the first .. 1 = only the second
 
 const float SLANT = 1.082;   // 62 degrees up from the horizontal: Valsera's 118, y down
 const float PITCH0 = 1.0 / 64.0;
@@ -45,9 +50,9 @@ vec2 pencilLod(float viewDepth) {
   float l = max(log2(max(uPencil.x * uPencil.y * viewDepth, 1e-5) / PITCH0), 0.0);
   return vec2(floor(l), fract(l));
 }
-vec2 paperCoords(vec3 worldPos) {
+vec2 paperCoords(vec3 worldPos, vec3 right, vec3 up) {
   vec3 d = worldPos - uPaperAnchor;
-  return vec2(dot(d, uCamRight), dot(d, uCamUp));
+  return vec2(dot(d, right), dot(d, up));
 }
 
 // One pointed stroke, row i: how hard the hand pressed at this point along it.

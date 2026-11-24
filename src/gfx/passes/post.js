@@ -69,18 +69,19 @@ uniform float uHurt, uFade;
 #include <pencil>
 #include <minimap>
 
-// View depth of the sheet this pixel is hatched on, interpolated between
-// world-pass pixels but never across a silhouette.
-float sheetAt(vec2 uv) {
+// Depth of the sheet this pixel is hatched on (along the first paper direction in
+// x, the second in y), interpolated between world-pass pixels but never across a
+// silhouette.
+vec2 sheetAt(vec2 uv) {
   vec2 st = uv * uInner - 0.5;
   ivec2 i = ivec2(floor(st)), hi = ivec2(uInner) - 1;
   vec2 f = fract(st);
-  float a = texelFetch(uSheet, clamp(i, ivec2(0), hi), 0).r, b = texelFetch(uSheet, clamp(i + ivec2(1, 0), ivec2(0), hi), 0).r;
-  float c = texelFetch(uSheet, clamp(i + ivec2(0, 1), ivec2(0), hi), 0).r, d = texelFetch(uSheet, clamp(i + ivec2(1, 1), ivec2(0), hi), 0).r;
-  float near = f.x < 0.5 ? (f.y < 0.5 ? a : c) : (f.y < 0.5 ? b : d);
-  float tol = near * 0.04;
-  a = abs(a - near) > tol ? near : a; b = abs(b - near) > tol ? near : b;
-  c = abs(c - near) > tol ? near : c; d = abs(d - near) > tol ? near : d;
+  vec2 a = texelFetch(uSheet, clamp(i, ivec2(0), hi), 0).rg, b = texelFetch(uSheet, clamp(i + ivec2(1, 0), ivec2(0), hi), 0).rg;
+  vec2 c = texelFetch(uSheet, clamp(i + ivec2(0, 1), ivec2(0), hi), 0).rg, d = texelFetch(uSheet, clamp(i + ivec2(1, 1), ivec2(0), hi), 0).rg;
+  vec2 near = f.x < 0.5 ? (f.y < 0.5 ? a : c) : (f.y < 0.5 ? b : d);
+  float tol = near.x * 0.04;
+  a = abs(a.x - near.x) > tol ? near : a; b = abs(b.x - near.x) > tol ? near : b;
+  c = abs(c.x - near.x) > tol ? near : c; d = abs(d.x - near.x) > tol ? near : d;
   return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
 }
 
@@ -115,26 +116,21 @@ float waveLines(vec2 uv, float amount, float pen) {
   return (1.0 - smoothstep(pen * 0.5, pen, abs(q.y - y))) * step(abs(q.x), 0.28 + 0.3 * r.y);
 }
 
-void main() {
-  vec2 px = vUv * uRes;
-  float dpr = uPencil.w;
-  vec3 page = paperSheet(px);
-
-  // where this pixel is on the page-in-the-world
-  vec2 ndc = vUv * 2.0 - 1.0;
-  vec3 rd = normalize(uCamFwd + uCamRight * (ndc.x * uTanFov.x) + uCamUp * (ndc.y * uTanFov.y));
-  vec2 uv, lod;
-  float viewDepth = sheetAt(vUv);
-  if (texture(uGbuf, vUv).z > 5000.0) {       // sky: hatched on the page, turning with the view
+// Everything laid with the side or the point of a pencil, and the doodles that
+// live on the page, for one paper direction (right, up, forward) and the depth
+// of this pixel's sheet along it.
+vec3 drawLays(vec3 page, vec3 rd, float sheet, vec3 right, vec3 up, vec3 fwd, bool sky, float dpr) {
+  vec2 uv;
+  if (sky) {                                   // sky: hatched on the dome, turning with the world
     uv = vec2(atan(rd.x, rd.z), asin(clamp(rd.y, -1.0, 1.0))) * 8.0;
-    viewDepth = 8.0;
+    sheet = 8.0;
   } else {
-    // a point on a sheet facing the camera at that depth: strokes stay straight
-    // on the page, and stay put on the world while the camera travels
-    uv = paperCoords(uCamPos + rd * (viewDepth / dot(rd, uCamFwd)));
+    // a point on a flat sheet at that depth: strokes stay straight on the page,
+    // and stay put on the world while the camera travels or turns
+    uv = paperCoords(uCamPos + rd * (sheet / max(dot(rd, fwd), 0.2)), right, up);
   }
-  lod = pencilLod(viewDepth);
-  float pen = uPencil.x * viewDepth * 1.5 * dpr;      // a pen stroke's width, in world units here
+  vec2 lod = pencilLod(sheet);
+  float pen = uPencil.x * sheet * 1.5 * dpr;          // a pen stroke's width, in world units here
 
   // every row of hatching stops a little short of the line, or runs a little over it
   float kind0 = texture(uMark, vUv).a;
@@ -159,6 +155,22 @@ void main() {
   vec3 inkLeaf = mix(INK_LEAF, INK_DARK, uNight * 0.6);
   col = inkOn(col, inkLeaf, grassTufts(uv, mark.b, pen) * 0.66 * uFade);
   col = inkOn(col, mix(INK_WET, INK_DARK, uNight * 0.5), waveLines(uv, saturate(mark.a - 1.0), pen) * 0.7 * uFade);
+  return col;
+}
+
+void main() {
+  vec2 px = vUv * uRes;
+  float dpr = uPencil.w;
+  vec3 page = paperSheet(px);
+
+  // where this pixel is on the page-in-the-world
+  vec2 ndc = vUv * 2.0 - 1.0;
+  vec3 rd = normalize(uCamFwd + uCamRight * (ndc.x * uTanFov.x) + uCamUp * (ndc.y * uTanFov.y));
+  vec2 sheet = sheetAt(vUv);
+  bool sky = texture(uGbuf, vUv).z > 5000.0;
+  vec3 col = drawLays(page, rd, sheet.x, uPaperRight, uPaperUp, uPaperFwd, sky, dpr);
+  // a fresh paper direction fades in over the held one: the same drawing, laid again
+  if (uPaperMix > 0.004) col = mix(col, drawLays(page, rd, sheet.y, uPaperRightB, uPaperUpB, uPaperFwdB, sky, dpr), uPaperMix);
 
   // the pen: marks on things, then the contours. The hand is not steady: lines
   // wobble, press harder here and there, and are sometimes gone over twice.

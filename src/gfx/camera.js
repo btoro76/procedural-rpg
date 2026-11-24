@@ -1,8 +1,10 @@
 // Orbit camera. Shaders build rays from the basis vectors; instanced geometry
 // uses the view-projection matrix; gameplay uses project() and ray().
 
-import { clamp, damp, dampAngle, m4, v3 } from '../core/math.js';
+import { clamp, damp, dampAngle, m4, smoothstep, v3 } from '../core/math.js';
 import { RENDER } from '../config.js';
+
+const LOOK_AHEAD = 1.5;     // how far above the hero a low camera aims
 
 export class Camera {
   constructor() {
@@ -39,7 +41,10 @@ export class Camera {
     const cp = Math.cos(this.pitch), sp = Math.sin(this.pitch);
     const dir = [Math.sin(this.yaw) * cp, sp, Math.cos(this.yaw) * cp]; // from target to eye
     let d = this.distance;
-    this.pos = v3.add(this.target, v3.scale(dir, d));
+    // Seen from low down and behind, the camera aims above the hero's head, so the hero
+    // stands in the lower third and the way ahead fills the picture; from above it aims at him.
+    const aim = [this.target[0], this.target[1] + LOOK_AHEAD * (1 - smoothstep(0.24, 0.62, this.pitch)), this.target[2]];
+    this.pos = v3.add(aim, v3.scale(dir, d));
     if (groundAt) {
       const floor = groundAt(this.pos[0], this.pos[2]) + 1.2;
       if (this.pos[1] < floor) this.pos[1] = floor;
@@ -49,7 +54,7 @@ export class Camera {
       this.pos[0] += (Math.random() - 0.5) * s; this.pos[1] += (Math.random() - 0.5) * s;
       this.shake = Math.max(0, this.shake - dt * 2.5);
     }
-    this.fwd = v3.norm(v3.sub(this.target, this.pos));
+    this.fwd = v3.norm(v3.sub(aim, this.pos));
     this.right = v3.norm(v3.cross(this.fwd, [0, 1, 0]));
     this.up = v3.cross(this.right, this.fwd);
     const ty = Math.tan(this.fov / 2);
