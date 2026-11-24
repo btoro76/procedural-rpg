@@ -9,6 +9,7 @@
 import { damp, dampAngle } from '../../core/math.js';
 import { yawFromDir } from '../entities.js';
 import { SPECIALS } from './specials.js';
+import { NIGHT } from './stakes.js';
 
 const LEASH = 24, HIT_AT = 0.5;
 const out = { x: 0, z: 0 };
@@ -60,7 +61,7 @@ export class MonsterAI {
           if (d < 0.3) ai.going = false;
           else { dx = (ai.gx - m.x) / d * def.speed * 0.4; dz = (ai.gz - m.z) / d * def.speed * 0.4; }
         }
-        if (fair && ((def.aggro > 0 && toP < def.aggro * (m.elite ? 1.3 : 1)) || ai.provoked)) { ai.state = 'chase'; ai.target = p; g.bus.emit('monster:alert', m); }
+        if (fair && ((def.aggro > 0 && toP < def.aggro * (m.elite ? 1.3 : 1) * (1 + NIGHT.aggro * g.stakes.night())) || ai.provoked)) { ai.state = 'chase'; ai.target = p; g.bus.emit('monster:alert', m); }
       } else if (ai.state === 'chase') {
         const reach = def.range + m.radius * 0.5;
         if (!fair || fromHome > LEASH) { ai.state = 'home'; ai.provoked = false; }

@@ -2,6 +2,7 @@
 // using, selling, buying and wearing items.
 
 import { ITEMS, RECIPES } from '../data/items.js';
+import { NIGHT } from './stakes.js';
 import { makeEntity, pencils } from '../entities.js';
 import { derive } from '../stats.js';
 
@@ -18,7 +19,7 @@ export class Loot {
     for (const [id, chance, range] of m.def.loot) {
       if (Math.random() > chance * (m.elite ? 2.5 : 1)) continue;
       let n = range[0] + Math.floor(Math.random() * (range[1] - range[0] + 1));
-      if (id === 'glint') n = Math.round(n * (1 + (m.level - 1) * 0.3) * (m.elite ? 4 : 1) * (g.player.forage ?? 1));
+      if (id === 'glint') n = Math.round(n * (1 + (m.level - 1) * 0.3) * (m.elite ? 4 : 1) * (g.player.forage ?? 1) * (1 + NIGHT.glint * g.stakes.night()));
       const a = Math.random() * 6.283, r = 0.4 + Math.random() * 0.9;
       const item = ITEMS[id];
       const e = makeEntity('drop', 'drop', {
@@ -48,7 +49,7 @@ export class Loot {
         d.tx = p.x; d.tz = p.z;
         if (dist < 0.75 && this.take(d)) { d.gone = true; continue; }
       }
-      if (d.age > 120) { d.gone = true; continue; }
+      if (d.age > 120 && !d.keep) { d.gone = true; continue; }
       this.drops[w++] = d;
     }
     this.drops.length = w;

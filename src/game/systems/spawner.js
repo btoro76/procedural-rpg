@@ -8,6 +8,7 @@ import { GAME } from '../../config.js';
 import { MONSTERS } from '../data/monsters.js';
 import { makeEntity, pencils } from '../entities.js';
 import { levelAt, scaleMonster } from '../stats.js';
+import { NIGHT } from './stakes.js';
 
 const NEAR = 26, FAR = 58, DESPAWN = 82;
 
@@ -62,7 +63,7 @@ export class Spawner {
     const level = Math.max(1, levelAt(Math.hypot(x, z)) + (Math.random() < 0.3 ? 1 : 0));
     for (let i = 0; i < pack && g.monsters.length < GAME.MAX_MONSTERS; i++) {
       const ox = x + (Math.random() - 0.5) * 5, oz = z + (Math.random() - 0.5) * 5;
-      if (this.clear(ox, oz)) this.spawnMonster(id, ox, oz, level, i === 0 && Math.random() < 0.05);
+      if (this.clear(ox, oz)) this.spawnMonster(id, ox, oz, level, i === 0 && Math.random() < 0.05 + NIGHT.elders * g.stakes.night());
     }
   }
 

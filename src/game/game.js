@@ -27,6 +27,7 @@ import { Bounties } from './systems/bounties.js';
 import { Tutorial } from './systems/tutorial.js';
 import { Hazards } from './systems/hazards.js';
 import { Discover } from './systems/discover.js';
+import { Stakes } from './systems/stakes.js';
 import { loadSave, writeSave } from './save.js';
 
 export class Game {
@@ -76,7 +77,8 @@ export class Game {
     this.tutorial = new Tutorial(this);
     this.hazards = new Hazards(this);
     this.discover = new Discover(this);
-    this.systems = [this.controls, new PlayerSystem(this), new MonsterAI(this), this.hazards, this.skills, this.loot, this.spawner, this.discover, this.bounties, this.tutorial, this.fx];
+    this.stakes = new Stakes(this);
+    this.systems = [this.controls, new PlayerSystem(this), new MonsterAI(this), this.hazards, this.skills, this.loot, this.spawner, this.discover, this.bounties, this.stakes, this.tutorial, this.fx];
     this.bounties.refresh();
 
     this.camera.target = [px, this.player.y + 1, pz];

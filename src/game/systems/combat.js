@@ -3,6 +3,7 @@
 
 import { xpFactor, xpToNext, derive, POINTS_PER_LEVEL } from '../stats.js';
 import { rank, rollOffer } from '../data/talents.js';
+import { NIGHT } from './stakes.js';
 
 export class Combat {
   constructor(game) {
@@ -37,7 +38,7 @@ export class Combat {
     const g = this.game, p = g.player;
     if (p.dead) return false;
     if (p.invuln > 0 || Math.random() < p.dodge) { if (!quiet) g.bus.emit('miss', { target: p, text: 'Dodged' }); return false; }
-    const raw = monster.atk * mult * (0.85 + Math.random() * 0.3) * (p.ward ?? 1);
+    const raw = monster.atk * mult * (0.85 + Math.random() * 0.3) * (p.ward ?? 1) * (1 + NIGHT.harm * g.stakes.night());
     this.damage(p, Math.max(1, Math.round(raw * 30 / (30 + p.defense))), monster, false);
     return true;
   }
@@ -70,7 +71,7 @@ export class Combat {
     const g = this.game, p = g.player;
     m.dead = true; m.deathT = 0;
     if (p.target === m) p.target = null;
-    const gained = Math.max(1, Math.round(m.xp * xpFactor(p.level, m.level)));
+    const gained = Math.max(1, Math.round(m.xp * xpFactor(p.level, m.level) * (1 + NIGHT.xp * g.stakes.night())));
     g.bus.emit('monster:died', m);
     p.focus = Math.min(p.maxFocus, p.focus + 5 * rank(p.sheet, 'second'));
     g.loot.dropFrom(m);

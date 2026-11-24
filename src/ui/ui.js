@@ -133,7 +133,10 @@ export function createUI(game) {
   bus.on('ui:toggle', (id) => { if (id === 'character') el.menu.querySelector('[data-open="character"]').classList.remove('alert'); });
   bus.on('site:enter', (s) => toast(s.name, s.kind === 'town' ? 'A safe hearth' : 'A waystone rests here'));
   bus.on('attune', (d) => log(`Attuned to <em>${d.name}</em>. You will return here.`));
-  bus.on('player:died', () => toast('You were overcome', `Returning to ${p.sheet.waystone.name}…`, 3));
+  bus.on('fallen', (d) => toast('You were overcome', d.lost ? `${d.lost} glint lies where you fell. Go back for it before you fall again.` : `Returning to ${p.sheet.waystone.name}…`, 4));
+  bus.on('recovered', (d) => log(`You have your <em>${d.n} glint</em> back.`));
+  bus.on('nightfall', () => toast('Night falls', 'The wilds grow bolder after dark, and richer.', 4));
+  bus.on('daybreak', () => log('Day breaks. The wilds settle.'));
   bus.on('trade', (d) => { if (d.total) log(`Sold materials for <em>${d.total} glint</em>`); });
   bus.on('bounty:claimed', (b) => toast('Bounty paid', `+${b.xp} xp · +${b.glint} glint`));
   bus.on('monster:died', (m) => { if (m.elite) log(`You felled an <em>${m.name}</em>.`); });

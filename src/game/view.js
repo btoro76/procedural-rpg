@@ -103,6 +103,8 @@ export class View {
       const dx = job.x - p.x, dz = job.z - p.z, d = Math.hypot(dx, dz), k = d > reach ? reach / d : 1;
       mm.add(p.x + dx * k, p.z + dz * k, 4, 3.4);
     }
+    const left = p.sheet.satchel;           // glint left where the hero fell
+    if (left) { const dx = left.x - p.x, dz = left.z - p.z, d = Math.hypot(dx, dz), k = d > reach ? reach / d : 1; mm.add(p.x + dx * k, p.z + dz * k, 3, 3.2); }
     const lead = g.discover.lead;
     if (lead && !known[lead.key]) mark(lead.x, lead.z, 2.2);
     for (const s of g.world.sites.inRange(p.x, p.z, 110)) mm.add(s.x, s.z, 2, 3.2);
