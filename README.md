@@ -2,7 +2,7 @@
 
 An open world drawn in ballpoint and coloured pencil on cream paper, that you can play in a browser, on a desktop or a phone. Walk and fight, gather loot, level up, and wander as far as you like: the land is generated as you go. Every pixel of the game is drawn by shaders — it uses no image files, no models and no libraries.
 
-**Play it: https://kevintngo.github.io/brushwild/**
+**Play it: https://kevintngo.github.io/procedural-rpg/**
 
 The art style is carried over from Valsera, a 2D game drawn the same way, from baked sprites to a live 3D world: one hatch slant for the whole page, visible strokes with paper showing through, shade as a second lay of a deeper pencil, light as bare paper, a sepia pen on scenery and a bold dark contour on figures, and one mustard part on every beast: the part that hurts.
 
