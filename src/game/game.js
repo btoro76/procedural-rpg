@@ -40,6 +40,7 @@ export class Game {
     this.camera = new Camera();
     this.env = createEnv();
     this.hour = save?.hour ?? GAME.START_HOUR;
+    this.savedView = Array.isArray(save?.view) ? save.view : null;      // the view the journey was last seen from
     this.entities = new Entities();
     this.monsters = [];
     this.look = { hurt: 0, fade: 0, fadeGoal: 1 };   // fade: how far the page has been drawn in
@@ -130,7 +131,8 @@ export class Game {
   save() {
     const p = this.player;
     if (this.paused && !this.started) return;
-    writeSave({ seed: this.seed, hour: this.hour, x: p.x, z: p.z, hp: p.hp, focus: p.focus, sheet: p.sheet });
+    const c = this.camera.goal;
+    writeSave({ seed: this.seed, hour: this.hour, x: p.x, z: p.z, hp: p.hp, focus: p.focus, sheet: p.sheet, view: [c.pitch, c.distance] });
   }
 
   /** Called by the title screen. */

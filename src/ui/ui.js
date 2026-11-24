@@ -3,6 +3,7 @@
 // panels. Reads game state each frame and listens to the event bus; the game
 // never calls into the UI.
 
+import { VIEWS } from '../config.js';
 import { xpToNext } from '../game/stats.js';
 import { SKILLS } from '../game/data/skills.js';
 import { ITEMS } from '../game/data/items.js';
@@ -168,8 +169,11 @@ export function createUI(game) {
     document.body.classList.remove('titled');
     game.begin();
     layout();
-    // a phone's picture is small, so the camera stands closer
-    Object.assign(game.camera.goal, { pitch: 0.8, distance: game.touch ? 12.5 : 15.5 });
+    // The view this journey was last seen from, or else the usual one: low behind the hero,
+    // who starts with his back to the camera. A phone's picture is small, so it stands closer.
+    const [pitch, distance] = game.savedView || [VIEWS.behind[0], VIEWS.behind[1] * (game.touch ? 0.9 : 1)];
+    Object.assign(game.camera.goal, { pitch, distance });
+    p.yaw = Math.PI - game.camera.goal.yaw;
   });
   $('btn-new').addEventListener('click', () => { clearSave(); game.started = false; location.search = '?new'; });
   game.look.fadeGoal = 1;

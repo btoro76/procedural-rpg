@@ -22,6 +22,10 @@ export const RENDER = {
   MAX_BLIPS: 32,           // minimap dots
 };
 
+// The two ready-made views: [pitch above the horizon in radians, distance]. A journey
+// starts in the first: low behind the hero, looking to the horizon.
+export const VIEWS = { behind: [0.36, 10.5], above: [0.8, 15.5] };
+
 export const GAME = {
   SEED: 20261123,
   DAY_SECONDS: 720,        // one full day/night cycle

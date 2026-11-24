@@ -40,9 +40,9 @@ node build.js
 | 1 2 3 4 | Skills (aim at the target, or at the cursor) |
 | R / F | Drink a Red Tonic / Blue Draught |
 | Space / Tab | Attack the nearest creature / pick the next one |
-| Right drag, Q / E | Turn and tilt the view, from high overhead down to low behind the hero |
+| Right drag, Q / E | Turn and tilt the view. A journey starts low behind the hero, looking to the horizon; tilt up for the view from above. |
 | Wheel | Zoom |
-| C / B / V | Character sheet / bag / buttons for the view |
+| C / B / V | Character sheet / bag / the view (two ready-made views, and buttons to turn, tilt and zoom) |
 
 On a touch screen:
 
@@ -84,6 +84,16 @@ Everything outside the starting town comes from the seed:
 - **Sites** at road crossings: shrines, travellers' camps (with a tinker who trades), ruins (with an elder beast living in them) and farms, each laid out with variations and given a made-up name (Aldwick Camp, Ruins of Fenholt…).
 - **Beasts that take after their country** — six body plans become Frost Craglings, Marsh Shellsnaps, Petal Wisps and so on: the biome supplies the coat and the name, distance from town the level.
 - **Weather and hours** — cloud cover drifts; day, dusk and night each change which pencils the page is drawn with.
+
+### How far it goes
+
+There is no edge. Land is generated chunk by chunk as it comes into view and let go behind you; a chunk takes about 3 ms to make, and the generator gives sound terrain 10,000 km from the start. What changes with distance, measured:
+
+- **The mix stays the same.** Sampled in rings from 1 km to 1,000 km out, the land is the same thirteen countries in the same shares (pinewood about 18%, amberwood 13, petalwood 12, heath 11, meadow 10, down to shore at 2 to 3), with about a third of the area under water. Nothing new appears far away; the same ingredients are arranged differently.
+- **Places repeat in kind.** Within 6 km there are 724 places of four kinds (shrines, ruins, camps, farms) besides the town, with 550 different names between them.
+- **The wilds get stronger without limit.** Creatures gain a level every 95 units: level 11 a kilometre out, level 112 at ten.
+- **Deep water stops you.** Shallows can be waded; lakes and sea must be walked round.
+- **The picture is drawn in single precision.** It looks right 20 km out, shows stepped edges at 200 km (about ten hours of running in a straight line), and breaks down by 2,000 km. A floating render origin would lift that.
 
 ## Layout
 

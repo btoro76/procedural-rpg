@@ -5,6 +5,7 @@
 import { ATTRIBUTES, derive, xpToNext } from '../game/stats.js';
 import { ITEMS, SHOP_STOCK } from '../game/data/items.js';
 import { SKILLS } from '../game/data/skills.js';
+import { VIEWS } from '../config.js';
 import { itemIcon } from './icons.js';
 
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -92,6 +93,7 @@ export class Panels {
       if (arg === 'left') cam.rotate(0.5, 0); else if (arg === 'right') cam.rotate(-0.5, 0);
       else if (arg === 'high') cam.rotate(0, 0.16); else if (arg === 'low') cam.rotate(0, -0.16);
       else if (arg === 'near') cam.zoom(0.84); else if (arg === 'far') cam.zoom(1.19);
+      else if (VIEWS[arg]) Object.assign(cam.goal, { pitch: VIEWS[arg][0], distance: VIEWS[arg][1] * (g.touch ? 0.9 : 1) });
       else if (arg === 'full') {
         const d = document, root = d.documentElement;
         const on = d.fullscreenElement || d.webkitFullscreenElement;
@@ -193,6 +195,7 @@ export class Panels {
     const full = d.fullscreenEnabled || d.webkitFullscreenEnabled;
     const b = (arg, text) => `<button type="button" class="btn" data-act="cam" data-arg="${arg}">${text}</button>`;
     return `
+      <div class="pair">${b('behind', 'Behind the hero')}${b('above', 'From above')}</div>
       <div class="pair">${b('left', 'Turn left')}${b('right', 'Turn right')}</div>
       <div class="pair">${b('high', 'Look from higher')}${b('low', 'Look from lower')}</div>
       <div class="pair">${b('near', 'Closer')}${b('far', 'Farther')}</div>

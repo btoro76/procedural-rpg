@@ -101,11 +101,11 @@ export class Tutorial {
     });
   }
 
-  /** A clear, walkable spot about `dist` from the hero, preferring the middle of where they stand. */
+  /** A clear, walkable spot about `dist` from the hero, preferring straight ahead of the camera. */
   freeSpot(dist, room) {
     const g = this.game, p = g.player, w = g.world;
-    const site = w.sites.near(p.x, p.z);
-    const toward = site ? Math.atan2(site.z - p.z, site.x - p.x) : 0;
+    const f = g.camera.fwd;
+    const toward = Math.atan2(f[2], f[0]);                // ahead of the camera, where it can be seen
     for (let k = 0; k < 16; k++) {
       // fan out from the preferred direction: 0, +1, -1, +2, -2 ... sixteenths of a turn
       const a = toward + (k % 2 ? 1 : -1) * Math.ceil(k / 2) * 0.39;
