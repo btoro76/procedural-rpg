@@ -8,6 +8,7 @@ import { damp, dampAngle } from '../../core/math.js';
 import { yawFromDir, dirFromYaw } from '../entities.js';
 
 const SWING = 0.42, HIT_AT = 0.45, REACH = 1.55;
+const CADENCE = 10.4;      // radians of stride a second: about 1.65 full cycles
 const out = { x: 0, z: 0 };
 
 export class PlayerSystem {
@@ -64,9 +65,15 @@ export class PlayerSystem {
       // walking into something: give up on a click-move rather than grind against it
       if (moved < Math.hypot(dx, dz) * dt * 0.25) { this.stuck += dt; if (this.stuck > 0.6) { p.moveTo = null; this.stuck = 0; } } else this.stuck = 0;
       if (moved > 1e-4 && !(p.action === 1 && tgt)) p.yaw = dampAngle(p.yaw, yawFromDir(p.x - px, p.z - pz), 16, dt);
-      const before = p.walk;
-      p.walk += moved * 2.6;
-      if (Math.floor(before / Math.PI) !== Math.floor(p.walk / Math.PI)) g.bus.emit('step', { entity: p, water: wet });
+      // The stride: legs turn over about 1.65 times a second whatever the pace, so a
+      // step is as long as the ground it covers (a stroll takes short steps, a run long
+      // ones) and the feet do not slide. A dash is a single held lunge, not a run.
+      if (!p.dash) {
+        const pace = moved / Math.max(dt, 1e-4);
+        const before = p.walk;
+        p.walk += moved * Math.min(4.5, Math.max(1.9, CADENCE / Math.max(pace, 0.1)));
+        if (Math.floor(before / Math.PI) !== Math.floor(p.walk / Math.PI)) g.bus.emit('step', { entity: p, water: wet });
+      }
     }
     const movedNow = Math.hypot(p.x - px, p.z - pz) / Math.max(dt, 1e-4);
     p.move = damp(p.move, Math.min(1, movedNow / (GAME.PLAYER_SPEED * 0.8)), 14, dt);

@@ -100,8 +100,9 @@ void entPose() {
 }
 float entMap(vec3 p, out float mat) {
   float s = sin(ePose.x) * ePose.w;
-  float feet = min(length(p - vec3(-0.12, 0.06 + max(s, 0.0) * 0.07, 0.04 + s * 0.08)),
-                   length(p - vec3(0.12, 0.06 + max(-s, 0.0) * 0.07, 0.04 - s * 0.08))) - 0.085;
+  float up = cos(ePose.x) * ePose.w;
+  float feet = min(length(p - vec3(-0.12, 0.06 + max(up, 0.0) * 0.09, 0.04 + s * 0.12)),
+                   length(p - vec3(0.12, 0.06 + max(-up, 0.0) * 0.09, 0.04 - s * 0.12))) - 0.085;
   vec3 q = puffLocal(p);
   float body = sdTaper(q, vec3(0.0, 0.14, 0.0), vec3(0.0, 0.42, 0.0), 0.2, 0.165);
   vec3 c = q - vec3(0.0, 0.5, 0.0);
@@ -155,8 +156,9 @@ registerArchetype({
 float bBob, bCharge, bNod;
 void entPose() {
   float mv = ePose.w;
-  bBob = abs(sin(ePose.x)) * 0.035 * mv + 0.01 * sin(uTime * 2.2 + eLook.x * 6.0);
-  bCharge = 0.0; bNod = 0.06 * sin(uTime * 1.3 + eLook.x * 9.0) * (1.0 - mv);
+  // a trot: the body rises as each diagonal pair of legs passes under it, and the head nods with it
+  bBob = abs(cos(ePose.x)) * 0.06 * mv + 0.01 * sin(uTime * 2.2 + eLook.x * 6.0);
+  bCharge = 0.0; bNod = 0.06 * sin(uTime * 1.3 + eLook.x * 9.0) * (1.0 - mv) + 0.09 * sin(ePose.x * 2.0) * mv;
   if (ePose.y > 0.5 && ePose.y < 1.5) { float k = sin(saturate(ePose.z) * PI); bCharge = k * 0.3; bNod = -k * 0.25; }
   if (ePose.y > 2.5) bCharge = -0.1 * (1.0 - ePose.z);
 }
@@ -167,7 +169,9 @@ float entMap(vec3 p, out float mat) {
   float sx = sign(lp.x), sz = sign(lp.z);
   float ph = s * sx * sz;
   vec3 hipJ = vec3(0.15 * sx, 0.26 + bBob, 0.2 * sz);
-  vec3 foot = vec3(0.16 * sx, 0.05 + max(ph, 0.0) * 0.08, 0.21 * sz + ph * 0.1);
+  // each foot swings forward lifted and comes back planted; the stride (monsters.js) matches the ground it covers
+  float lifted = max(cos(ePose.x) * sx * sz, 0.0) * ePose.w;
+  vec3 foot = vec3(0.16 * sx, 0.05 + lifted * 0.13, 0.21 * sz + ph * 0.2);
   float legs = sdTaper(lp, hipJ, foot, 0.07, 0.055);
   p.z -= bCharge; p.y -= bBob;
   vec3 br = vec3(0.25, 0.225, 0.37);

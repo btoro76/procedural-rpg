@@ -233,5 +233,5 @@ export function createUI(game) {
     plates.update(dt);
   });
 
-  return { toast, log, panels };
+  return { toast, log, panels, plates };
 }

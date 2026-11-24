@@ -24,7 +24,7 @@ export const MONSTERS = {
   },
   bristlehog: {
     name: 'Bristlehog', archetype: 'bristlehog', scale: 1.1, radius: 0.48, height: 1.0,
-    hp: 68, atk: 10, speed: 3.5, range: 1.35, attackTime: 0.7, cooldown: 1.8, aggro: 7.5, xp: 23, stride: 5.0,
+    hp: 68, atk: 10, speed: 3.5, range: 1.35, attackTime: 0.7, cooldown: 1.8, aggro: 7.5, xp: 23, stride: 3.1,
     colors: [[74, 77, 94], [226, 176, 52], [226, 188, 130]],         // charcoal hide, mustard bristles and tusks, tan snout
     loot: [['glint', 1, [4, 9]], ['hog_bristle', 0.5, [1, 2]], ['tonic', 0.1, [1, 1]], ['charm_might', 0.015, [1, 1]]],
   },
@@ -42,7 +42,7 @@ export const MONSTERS = {
   },
   shellsnap: {
     name: 'Shellsnap', archetype: 'shellsnap', scale: 1.05, radius: 0.48, height: 0.75,
-    hp: 50, atk: 8, speed: 2.9, range: 1.25, attackTime: 0.6, cooldown: 1.5, aggro: 5, xp: 17, stride: 3.0,
+    hp: 50, atk: 8, speed: 2.9, range: 1.25, attackTime: 0.6, cooldown: 1.5, aggro: 5, xp: 17, stride: 2.2,
     colors: [[188, 84, 60], [226, 176, 52], [226, 188, 130]],        // brick shell, mustard claws, tan legs
     loot: [['glint', 1, [3, 7]], ['snap_claw', 0.5, [1, 1]], ['tonic', 0.08, [1, 1]], ['charm_grace', 0.015, [1, 1]]],
   },

@@ -141,6 +141,7 @@ The interface is the same paper: cream plates with a pen border, hand lettering,
 - Keyboard: Tab, Enter and Space work the interface whenever a panel or the title is up or a button has focus, with a visible blue pen ring; C, B and V open panels, Esc closes them.
 - Nothing needs a drag, a pinch or a wheel: tapping the picture walks, and the View panel has buttons for turning, tilting and zooming. Pinch-zooming the page itself is left on.
 - Nothing relies on colour alone (bars carry an icon and numbers), and `prefers-reduced-motion` turns off screen shake and the title's turning view.
+- Lettering never sits on other lettering: name slips are laid out so they clear each other and the HUD, damage numbers start above a creature's slip and step over anything in their way, and the HUD is drawn over the world's labels (`src/ui/plates.js`).
 
 The game itself is a moving picture played with a mouse, keys or thumbs; it has not been tested with a screen reader beyond the roles above.
 

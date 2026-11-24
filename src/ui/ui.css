@@ -153,7 +153,11 @@ body.titled #ui { opacity: 0; }
 #menu button.alert::after { content: ''; position: absolute; right: -5px; top: -5px; width: 11px; height: 11px; border-radius: 50%; background: var(--vermilion); border: 1.4px solid var(--pen); }
 
 /* ---- world-anchored labels and numbers */
-#plates, #floaters { position: absolute; left: 0; top: 0; right: 0; height: var(--view-h); overflow: hidden; pointer-events: none; }
+#plates, #floaters { position: absolute; left: 0; top: 0; right: 0; height: var(--view-h); overflow: hidden; pointer-events: none; z-index: 0; }
+/* the HUD is drawn over the world's own labels, so a name or a number can never cover it (plates.js keeps them apart) */
+#ui > section, #ui > nav, #toast { z-index: 2; }
+#stick { z-index: 1; }
+#panels { z-index: 3; }
 .np { position: absolute; left: 0; top: 0; padding: 1px 10px 3px; background: var(--paper); border: 1.3px solid var(--pen); border-radius: var(--wobble); font-size: 16px; line-height: 1.2; white-space: nowrap; text-align: center; will-change: transform; }
 .np small { color: var(--dim); margin-left: 6px; font-size: 14px; }
 .np .mini { display: block; height: 6px; margin: 2px 0 1px; border: 1px solid var(--pen); border-radius: 2px; background: var(--paper); overflow: hidden; }
@@ -374,7 +378,8 @@ body.touch .btn { min-height: 44px; padding: 8px 16px 10px; }
   body.touch #map-ring { width: 96px; height: 96px; }
   body.touch #place { padding: 2px 10px 4px; font-size: 16px; gap: 7px; }
   body.touch #place .dim { font-size: 14px; }
-  body.touch #toast { top: 19%; padding: 7px 24px 9px; max-width: calc(100vw - 500px); }
+  /* an announcement takes the top middle (over the target plate while it shows), clear of the fight */
+  body.touch #toast { top: 8px; padding: 6px 24px 8px; max-width: calc(100vw - 500px); }
   body.touch #toast strong { font-size: 25px; }
   body.touch #log { display: flex; left: 50%; right: auto; transform: translateX(-50%); bottom: calc(8px + var(--sb)); width: max-content; max-width: calc(100vw - 144 * var(--u)); align-items: center; }
   body.touch #log p { align-self: center; font-size: 15px; }

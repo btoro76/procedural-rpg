@@ -7,7 +7,7 @@ const canvas = document.getElementById('view');
 try {
   const game = new Game(canvas);
   window.__game = game; // handy in the console; nothing depends on it
-  createUI(game);
+  game.ui = createUI(game);
   import('./audio/audio.js').then((m) => m.createAudio(game)).catch((e) => console.warn('Audio unavailable:', e));
   game.start();
 } catch (err) {

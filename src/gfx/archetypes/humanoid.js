@@ -13,15 +13,32 @@ void entPose() {
   float w = ePose.x, act = ePose.y, at = ePose.z, mv = ePose.w;
   float s = sin(w), c = cos(w);
   float idle = sin(uTime * 2.0 + eLook.x * 6.28);
-  float bob = abs(c) * 0.045 * mv + 0.01 * idle * (1.0 - mv);
+  // Walk and run are two different cycles. A walk rises as the legs pass under the
+  // body. A run sinks onto the planted foot and is thrown clear of the ground with
+  // the feet wide apart, leans into it, lifts the knees and pumps the arms. The
+  // stride (see systems/player.js) is long enough that twelve drawings a second
+  // show every stage of it.
+  float run = smoothstep(0.8, 1.0, mv);
+  float apart = s * s;                                       // 1 with the feet wide, 0 as they pass
+  float bob = mix(abs(c) * 0.05, apart * 0.15 - 0.04, run) * mv + 0.01 * idle * (1.0 - mv);
+  float lean = mv * mix(0.05, 0.14, run);
   hHip = vec3(0.0, 0.47 + bob, 0.0);
-  hChest = hHip + vec3(0.0, 0.27, 0.05 * mv);
-  hHead = hChest + vec3(0.0, 0.43, 0.03 * mv);
-  hFootL = vec3(-0.12, 0.07 + max(c, 0.0) * 0.13 * mv, s * 0.26 * mv);
-  hFootR = vec3(0.12, 0.07 + max(-c, 0.0) * 0.13 * mv, -s * 0.26 * mv);
-  hHandL = hChest + vec3(-0.3, -0.24 + 0.01 * idle, -s * 0.2 * mv + 0.02);
-  hHandR = hChest + vec3(0.3, -0.24 + 0.01 * idle, s * 0.2 * mv + 0.02);
-  hBlade = normalize(vec3(0.25, 0.85, 0.45));
+  hChest = hHip + vec3(0.0, 0.27 - 0.015 * run, lean);
+  hHead = hChest + vec3(0.0, 0.43 - 0.01 * run, lean * 0.6 - 0.02 * run * apart);
+  // a foot swings forward lifted and comes back planted; in a run the lift starts
+  // early (the heel kicks up behind) and both feet leave the ground at full stretch
+  float reach = 0.4 * mv;
+  float lift = mix(0.1, 0.25, run) * min(1.0, mv * 1.5);
+  float air = run * mv * apart * 0.11;
+  float early = 0.6 * run;
+  hFootL = vec3(-0.12, 0.07 + max(cos(w - early), 0.0) * lift + air, s * reach - 0.05 * run);
+  hFootR = vec3(0.12, 0.07 + max(-cos(w - early), 0.0) * lift + air, -s * reach - 0.05 * run);
+  // arms swing against the legs, hands rising as they come forward; the sword arm swings shorter
+  float pump = mix(0.2, 0.32, run) * mv;
+  float rise = 0.09 * run * mv;
+  hHandL = hChest + vec3(-0.3 + 0.04 * run, -0.24 + 0.01 * idle + rise * max(-s, 0.0), -s * pump + 0.02);
+  hHandR = hChest + vec3(0.3 - 0.03 * run, -0.24 + 0.01 * idle + rise * max(s, 0.0), s * pump * 0.7 + 0.02);
+  hBlade = normalize(vec3(0.25, 0.85 - 0.2 * run, 0.45 - 0.5 * run));
   if (act > 0.5 && act < 1.5) {
     // swing: wind up over the right shoulder, cut across the front, recover
     float wind = smoothstep(0.0, 0.22, at), cut = smoothstep(0.22, 0.5, at), rec = smoothstep(0.62, 1.0, at);
@@ -41,6 +58,16 @@ void entPose() {
     float k = 1.0 - at;
     hChest.z -= 0.08 * k; hHead.z -= 0.14 * k;
     hHandL.y += 0.1 * k; hHandR.y += 0.1 * k;
+  } else if (act > 3.5 && act < 4.5) {
+    // a dash is one held drawing: a long low lunge, arms and blade trailing
+    hHip = vec3(0.0, 0.4, 0.0);
+    hChest = hHip + vec3(0.0, 0.24, 0.17);
+    hHead = hChest + vec3(0.0, 0.4, 0.13);
+    hFootL = vec3(-0.11, 0.09, 0.46);
+    hFootR = vec3(0.11, 0.24, -0.5);
+    hHandL = hChest + vec3(-0.27, -0.08, -0.34);
+    hHandR = hChest + vec3(0.3, -0.14, -0.3);
+    hBlade = normalize(vec3(0.2, 0.22, -0.95));
   }
 }
 

@@ -55,6 +55,7 @@ export const SKILLS = [
     cast(g, p, aim) {
       p.yaw = yawFromDir(aim.dirX, aim.dirZ);
       p.dash = { x: aim.dirX, z: aim.dirZ, speed: 26, t: 0.22 };
+      p.action = 4; p.actionT = 0; p.actionDur = 0.24;     // the lunge pose
       p.invuln = Math.max(p.invuln, 0.35);
       p.moveTo = null;
       g.bus.emit('dash', { x: p.x, y: p.y, z: p.z });
