@@ -7,8 +7,13 @@
 // What has been found lives on the journey's sheet (found, known, ways, boon), so it is saved with it.
 
 import { BOONS, derive, levelAt } from '../stats.js';
+import { BIOMES } from '../../world/biomes.js';
+import { rollOffer } from '../data/talents.js';
 
 const CHARMS = ['charm_might', 'charm_grace', 'charm_vigor', 'charm_mind'];
+// The Long Walk: the journey's one long errand is to set foot in every country.
+// At each of these counts the road teaches a talent.
+const WALK_MARKS = [4, 8, BIOMES.length];
 const MATS = ['sprout_leaf', 'puff_spore', 'hog_bristle', 'wisp_ember', 'crag_shard', 'snap_claw'];
 
 export class Discover {
@@ -18,7 +23,7 @@ export class Discover {
     this.trip = null;          // a journey between waystones in progress
     this.lead = null;          // the nearest made place not yet found: the map points to it
     const s = game.player.sheet;
-    s.found = s.found || {}; s.known = s.known || {}; s.boon = s.boon || null;
+    s.found = s.found || {}; s.known = s.known || {}; s.boon = s.boon || null; s.lands = s.lands || {};
     if (!s.ways || !s.ways.length) s.ways = [{ x: 0, z: 0, name: 'Hearthmere' }];
     if (s.waystone && !s.ways.some((w) => w.x === s.waystone.x && w.z === s.waystone.z)) s.ways.push({ ...s.waystone });
     for (const key in s.found) if (key[0] === 'f') game.world.gen.opened.add(key);       // chests already opened stay open
@@ -26,6 +31,29 @@ export class Discover {
       if (!s.ways.some((w) => w.x === d.x && w.z === d.z)) s.ways.push({ x: d.x, z: d.z, name: d.name });
     });
     game.bus.on('player:respawn', () => { this.trip = null; });
+  }
+
+  /** The next count of countries at which the Long Walk gives something, or 0 when it is done. */
+  nextMark() {
+    const n = Object.keys(this.game.player.sheet.lands).length;
+    return WALK_MARKS.find((m) => m > n) || 0;
+  }
+
+  /** A country walked in for the first time. */
+  land(biome) {
+    const g = this.game, s = g.player.sheet;
+    const first = Object.keys(s.lands).length === 0;
+    s.lands[biome.id] = 1;
+    const n = Object.keys(s.lands).length;
+    if (first) return;                              // where the journey begins needs no announcement
+    const mark = WALK_MARKS.includes(n);
+    if (mark) {
+      s.picks = (s.picks || 0) + 1;
+      if (!s.offer) s.offer = rollOffer(s);
+      if (!s.offer) s.picks = 0;
+    }
+    g.combat.grantXp(10 + n * 6);
+    g.bus.emit('land', { name: biome.name, count: n, total: BIOMES.length, mark, all: n === BIOMES.length });
   }
 
   /** How many places and finds this journey has reached. */
@@ -76,6 +104,10 @@ export class Discover {
     }
     if ((this.timer -= dt) > 0) return;
     this.timer = 0.25;
+
+    // ---- the Long Walk: a country counts once the hero is well inside it
+    const biome = w.biome(p.x, p.z);
+    if (!s.lands[biome.id]) this.land(biome);
 
     // ---- made places: noted the first time the hero stands in one
     let lead = null, best = 1e9;

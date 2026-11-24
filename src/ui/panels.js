@@ -8,6 +8,7 @@ import { SKILLS } from '../game/data/skills.js';
 import { TALENTS, rank, takeTalent } from '../game/data/talents.js';
 import { RECIPES } from '../game/data/items.js';
 import { VIEWS } from '../config.js';
+import { BIOMES } from '../world/biomes.js';
 import { itemIcon } from './icons.js';
 
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -203,12 +204,13 @@ export class Panels {
     const g = this.game, b = g.player.sheet.bounty;
     if (b) {
       const done = b.have >= b.need;
-      return `<p>“${done ? 'Good work out there. Here is your pay.' : 'Still on the hunt? Come back when it is done.'}”</p>
-        <div class="offer"><strong>Cull ${b.need} ${b.name}s</strong><small>${b.have} of ${b.need} · reward ${b.xp} xp, ${b.glint} glint</small>
+      g.bounties.progress();
+      return `<p>“${done ? 'Good work out there. Here is your pay.' : 'Still at it? Come back when it is done.'}”</p>
+        <div class="offer"><strong>${esc(g.bounties.title(b))}</strong><small>${b.need > 1 ? `${b.have} of ${b.need} · ` : ''}reward ${b.xp} xp, ${b.glint} glint</small>
         ${done ? '<button type="button" class="btn primary" data-act="claim">Claim reward</button>' : '<button type="button" class="btn" data-act="abandon">Give up</button>'}</div>`;
     }
-    return `<p>“The fields need thinning. Take a job, Wayfarer.”</p>` + g.bounties.offers.map((o, i) =>
-      `<div class="offer"><strong>Cull ${o.need} ${o.name}s</strong><small>Reward ${o.xp} xp, ${o.glint} glint</small>
+    return `<p>“There is always work for a Wayfarer. Take a job.”</p>` + g.bounties.offers.filter(Boolean).map((o, i) =>
+      `<div class="offer"><strong>${esc(g.bounties.title(o))}</strong><small>Reward ${o.xp} xp, ${o.glint} glint${o.x !== undefined ? ' · marked in red on your map' : ''}</small>
        <button type="button" class="btn" data-act="accept" data-arg="${i}">Accept</button></div>`).join('');
   }
 
@@ -221,6 +223,8 @@ export class Panels {
     const known = Object.keys(s.known).length;
     return `
       <div class="row"><p>${g.discover.count()} ${g.discover.count() === 1 ? 'place' : 'places'} found</p><p class="dim">${known ? `${known} more marked on the map` : ''}</p></div>
+      <div class="label">The Long Walk: ${Object.keys(s.lands || {}).length} of ${BIOMES.length} countries walked</div>
+      <p class="dim">${BIOMES.filter((b) => s.lands && s.lands[b.id]).map((b) => b.name).join(', ') || 'None yet.'}${g.discover.nextMark() ? ` The road teaches a talent at ${g.discover.nextMark()}.` : ' You have walked them all.'}</p>
       ${s.boon ? `<p>${BOONS[s.boon.id].name}: ${BOONS[s.boon.id].desc}</p>` : ''}
       <div class="label">Waystones you are attuned to</div>
       ${rows}

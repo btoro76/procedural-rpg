@@ -145,6 +145,11 @@ export function createUI(game) {
     else log(`Found <em>${d.name}</em>. ${d.count} ${d.count === 1 ? 'place' : 'places'} so far.`);
   });
   bus.on('boon', (d) => toast(d.name, `${d.desc} The stones lend it for a few minutes.`, 3.6));
+  bus.on('land', (d) => {
+    if (d.all) toast('The Long Walk is done', 'You have set foot in every country. The road teaches one last talent.', 5);
+    else if (d.mark) { toast(`${d.count} countries walked`, 'The road teaches: a talent to choose, in the Character sheet.', 4); el.menu.querySelector('[data-open="character"]').classList.add('alert'); }
+    else log(`New country: <em>${d.name}</em>. ${d.count} of ${d.total} walked.`);
+  });
   bus.on('travel:arrive', (d) => log(`Travelled to <em>${d.name}</em>.`));
   el.ring.addEventListener('click', (e) => { bus.emit('ui:toggle', 'travel'); if (e.detail) el.ring.blur(); });
 
@@ -233,7 +238,7 @@ export function createUI(game) {
 
     const b = s.bounty;
     set('trHid', el.tracker, 'hidden', !b);
-    if (b) set('trText', el.trackerText, 'textContent', b.have >= b.need ? `Done — return to Bram` : `${b.name}s: ${b.have} / ${b.need}`);
+    if (b) set('trText', el.trackerText, 'textContent', game.bounties.track(b));
 
     SKILLS.forEach((k, i) => {
       const slot = slots[i], cd = game.skills.cooldowns[i];

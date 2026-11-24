@@ -76,7 +76,7 @@ export class Game {
     this.tutorial = new Tutorial(this);
     this.hazards = new Hazards(this);
     this.discover = new Discover(this);
-    this.systems = [this.controls, new PlayerSystem(this), new MonsterAI(this), this.hazards, this.skills, this.loot, this.spawner, this.discover, this.tutorial, this.fx];
+    this.systems = [this.controls, new PlayerSystem(this), new MonsterAI(this), this.hazards, this.skills, this.loot, this.spawner, this.discover, this.bounties, this.tutorial, this.fx];
     this.bounties.refresh();
 
     this.camera.target = [px, this.player.y + 1, pz];

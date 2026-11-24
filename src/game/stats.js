@@ -27,6 +27,7 @@ export function newPlayerSheet() {
     known: {},            // places a beacon has shown: key -> [x, z, name]
     ways: [{ x: 0, z: 0, name: 'Hearthmere' }],     // waystones attuned to: where the hero can travel
     boon: null,           // { id, left }
+    lands: {},            // countries (biomes) walked in: the Long Walk
     talents: {},          // talent id -> times taken (data/talents.js)
     picks: 0, offer: null,     // talents still to choose, and the three on offer
     base: { might: 5, grace: 5, vigor: 5, mind: 5 },

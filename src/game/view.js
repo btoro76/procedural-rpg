@@ -98,6 +98,11 @@ export class View {
     };
     const known = p.sheet.known;
     for (const key in known) mark(known[key][0], known[key][1], 2.8);
+    const job = p.sheet.bounty;             // a bounty that names a place points to it, in the bounty's red
+    if (job && job.x !== undefined && job.have < job.need) {
+      const dx = job.x - p.x, dz = job.z - p.z, d = Math.hypot(dx, dz), k = d > reach ? reach / d : 1;
+      mm.add(p.x + dx * k, p.z + dz * k, 4, 3.4);
+    }
     const lead = g.discover.lead;
     if (lead && !known[lead.key]) mark(lead.x, lead.z, 2.2);
     for (const s of g.world.sites.inRange(p.x, p.z, 110)) mm.add(s.x, s.z, 2, 3.2);
