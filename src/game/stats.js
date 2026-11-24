@@ -13,9 +13,20 @@ export const ATTRIBUTES = [
 export const xpToNext = (level) => Math.round(36 * Math.pow(level, 1.55));
 export const POINTS_PER_LEVEL = 3;
 
+// A boon is lent by a ring of standing stones and wears off: one at a time.
+export const BOONS = {
+  kindled: { name: 'Kindled', desc: 'You hit a fifth harder.', seconds: 240 },
+  fleet: { name: 'Fleet', desc: 'You run a fifth faster.', seconds: 240 },
+  hale: { name: 'Hale', desc: 'A quarter more health.', seconds: 240 },
+};
+
 export function newPlayerSheet() {
   return {
     level: 1, xp: 0, points: 0, glint: 20,
+    found: {},            // keys of places and finds reached
+    known: {},            // places a beacon has shown: key -> [x, z, name]
+    ways: [{ x: 0, z: 0, name: 'Hearthmere' }],     // waystones attuned to: where the hero can travel
+    boon: null,           // { id, left }
     base: { might: 5, grace: 5, vigor: 5, mind: 5 },
     charms: [],           // equipped charm item ids (max 2)
     bag: [{ id: 'tonic', n: 3 }, { id: 'draught', n: 1 }],
@@ -33,7 +44,10 @@ export function derive(player) {
   player.level = s.level;
   player.maxHp = Math.round(70 + a.vigor * 11 + s.level * 9);
   player.maxFocus = Math.round(30 + a.mind * 6 + s.level * 2);
-  player.attack = 7 + a.might * 1.7 + s.level * 1.3;
+  const boon = s.boon ? s.boon.id : '';
+  if (boon === 'hale') player.maxHp = Math.round(player.maxHp * 1.25);
+  player.attack = (7 + a.might * 1.7 + s.level * 1.3) * (boon === 'kindled' ? 1.2 : 1);
+  player.speedMul = boon === 'fleet' ? 1.2 : 1;
   player.attackSpeed = Math.min(2.3, 1.2 + a.grace * 0.022);
   player.crit = Math.min(0.5, 0.04 + a.grace * 0.006);
   player.dodge = Math.min(0.3, a.grace * 0.005);

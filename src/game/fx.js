@@ -195,6 +195,9 @@ export class Fx {
       if (d.heavy) this.game.camera.shake = Math.min(1, this.game.camera.shake + 0.45);
     });
     bus.on('shot:hit', (d) => { this.hit(d.x, d.y, d.z, MUSTARD, false); });
+    bus.on('found', (d) => { if (d.x !== undefined) this.sparkle(d.x, d.y + 0.6, d.z, GOLD, 10); });
+    bus.on('boon', (d) => this.heal(d.entity, SKY));
+    bus.on('travel:arrive', (d) => { this.spawn('ring', d.x, d.y + 0.08, d.z, { size: 2.2, life: 0.6, color: SKY, ground: true }); this.sparkle(d.x, d.y + 1, d.z, SKY, 8); });
     bus.on('charge:dust', (d) => this.dust(d.x, d.y, d.z, 2));
     bus.on('guard', (d) => this.spawn('mark', d.entity.x, d.entity.y + 0.1, d.entity.z, { size: d.entity.radius * 2.8, life: d.t, color: SKY, ground: true, follow: d.entity, dy: 0.1 }));
   }

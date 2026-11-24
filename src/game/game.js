@@ -26,6 +26,7 @@ import { Loot } from './systems/loot.js';
 import { Bounties } from './systems/bounties.js';
 import { Tutorial } from './systems/tutorial.js';
 import { Hazards } from './systems/hazards.js';
+import { Discover } from './systems/discover.js';
 import { loadSave, writeSave } from './save.js';
 
 export class Game {
@@ -74,7 +75,8 @@ export class Game {
     // order matters: intent -> bodies -> consequences -> population
     this.tutorial = new Tutorial(this);
     this.hazards = new Hazards(this);
-    this.systems = [this.controls, new PlayerSystem(this), new MonsterAI(this), this.hazards, this.skills, this.loot, this.spawner, this.tutorial, this.fx];
+    this.discover = new Discover(this);
+    this.systems = [this.controls, new PlayerSystem(this), new MonsterAI(this), this.hazards, this.skills, this.loot, this.spawner, this.discover, this.tutorial, this.fx];
     this.bounties.refresh();
 
     this.camera.target = [px, this.player.y + 1, pz];

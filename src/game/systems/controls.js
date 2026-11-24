@@ -80,6 +80,7 @@ export class Controls {
     if (input.hit('KeyC')) g.bus.emit('ui:toggle', 'character');
     if (input.hit('KeyB') || input.hit('KeyI')) g.bus.emit('ui:toggle', 'bag');
     if (input.hit('KeyV')) g.bus.emit('ui:toggle', 'view');
+    if (input.hit('KeyT')) g.bus.emit('ui:toggle', 'travel');
     if (input.hit('KeyM')) g.bus.emit('ui:toggle', 'sound');
   }
 

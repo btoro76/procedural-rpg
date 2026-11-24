@@ -34,7 +34,7 @@ export class PlayerSystem {
     p.attackCd -= dt;
 
     const wet = w.waterDepth(p.x, p.z) > 0.18;
-    const speed = GAME.PLAYER_SPEED * (wet ? 0.62 : 1);
+    const speed = GAME.PLAYER_SPEED * (wet ? 0.62 : 1) * (p.speedMul || 1);
     let dx = 0, dz = 0, want = 0;
     const tgt = p.target && !p.target.gone && !p.target.dead ? p.target : (p.target = null);
 

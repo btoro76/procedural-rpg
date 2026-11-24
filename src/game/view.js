@@ -89,6 +89,17 @@ export class View {
     const mm = g.renderer.minimap;
     mm.clear();
     mm.player = [p.x, p.z, p.yaw];
+    // places the map knows of but the hero has not reached are marked, at the rim if they lie beyond it:
+    // those a beacon has shown, and the nearest made place still unfound
+    const reach = Math.max(8, mm.rect[2] * mm.rect[3] - 7);
+    const mark = (x, z, size) => {
+      const dx = x - p.x, dz = z - p.z, d = Math.hypot(dx, dz), k = d > reach ? reach / d : 1;
+      mm.add(p.x + dx * k, p.z + dz * k, 5, size);
+    };
+    const known = p.sheet.known;
+    for (const key in known) mark(known[key][0], known[key][1], 2.8);
+    const lead = g.discover.lead;
+    if (lead && !known[lead.key]) mark(lead.x, lead.z, 2.2);
     for (const s of g.world.sites.inRange(p.x, p.z, 110)) mm.add(s.x, s.z, 2, 3.2);
     for (const e of ents) {
       if (e.kind === 'npc') mm.add(e.x, e.z, 1, 2.6);

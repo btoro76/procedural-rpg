@@ -17,7 +17,8 @@ vec3 blipColor(float kind) {
   if (kind < 1.5) return P_SLATE;        // townsfolk
   if (kind < 2.5) return P_TEAL;         // a waystone
   if (kind < 3.5) return PAPER;          // loot
-  return P_VERMILION;                    // the bounty's quarry
+  if (kind < 4.5) return P_VERMILION;    // the bounty's quarry
+  return P_SUN;                          // a place known of, not yet reached
 }
 
 // A small map on the same paper: the land's pencil laid lightly, water in blue,

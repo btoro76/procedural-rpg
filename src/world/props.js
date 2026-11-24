@@ -638,6 +638,55 @@ float sdf_cairn(vec3 q, Prop pr, out float mat) {
 void mat_cairn(vec3 q, float mat, Prop pr, inout Surf s) { mat_rock(q, mat, pr, s); s.moss = 0.4; }`,
 });
 
+// ---------------------------------------------------------------- finds: things left out in the wilds
+
+registerProp({
+  id: 'chest', reach: 0.8, height: 0.95, collide: 0.6, map: [0.87, 0.7, 0.43],
+  glsl: /* glsl */ `
+float sdf_chest(vec3 q, Prop pr, out float mat) {
+  // palette 1 = opened: the lid stands back on its hinge
+  float box = sdRoundBox(q - vec3(0.0, 0.3, 0.0), vec3(0.52, 0.29, 0.36), 0.03);
+  vec3 l = q - vec3(0.0, 0.58, 0.0);
+  if (pr.pal > 0.5) { l = q - vec3(0.0, 0.58, -0.36); l.yz = rot2(1.3) * l.yz; l.z -= 0.36; }
+  float lid = max(max(length(l.yz * vec2(1.0, 0.86)) - 0.31, -l.y), abs(l.x) - 0.54);    // half a barrel lying along x
+  float latch = sdRoundBox(q - vec3(0.0, 0.5, 0.38), vec3(0.07, 0.1, 0.03), 0.012);
+  float d = min(box, lid);
+  mat = latch < d ? 2.0 : (lid < box ? 1.0 : 0.0);
+  return min(d, latch) * 0.9;
+}
+void mat_chest(vec3 q, float mat, Prop pr, inout Surf s) {
+  if (mat > 1.5) { s.albedo = P_BUTTER; s.cover = 0.9; return; }
+  s.albedo = mix(P_WOOD, P_BARK, 0.3 + 0.35 * mat); s.cover = 0.82;
+  // two iron bands and the joints of the planks
+  s.ink = max(penLine(abs(abs(q.x) - 0.3) - 0.035), penLine(fract(q.y * 6.0 + 0.2) - 0.5) * 0.35 * (1.0 - mat));
+}`,
+});
+
+registerProp({
+  id: 'beacon', reach: 1.5, height: 9.2, collide: 1.2, map: [0.95, 0.6, 0.3],
+  light: { color: [1.0, 0.7, 0.36], radius: 13, y: 8.4, always: true },
+  glsl: /* glsl */ `
+float sdf_beacon(vec3 q, Prop pr, out float mat) {
+  // a watch tower of dressed stone, tall enough to be seen over the trees, with a fire kept on top
+  float tower = sdTaper(q, vec3(0.0, 0.0, 0.0), vec3(0.0, 7.3, 0.0), 1.2, 0.82);
+  float gallery = sdCylinder(q - vec3(0.0, 7.2, 0.0), 1.2, 0.28);
+  float bowl = sdCylinder(q - vec3(0.0, 7.48, 0.0), 0.55, 0.32);
+  float fire = sdEllipsoid(q - vec3(0.0, 8.35, 0.0), vec3(0.42, 0.66, 0.42));
+  float stone = min(tower, min(gallery, bowl));
+  mat = fire < stone ? 1.0 : 0.0;
+  return min(stone, fire) * 0.85;
+}
+void mat_beacon(vec3 q, float mat, Prop pr, inout Surf s) {
+  if (mat > 0.5) { s.albedo = P_APRICOT; s.cover = mix(0.5, 0.0, uNight); s.glow = 1.0; return; }   // the fire is paper, most of all at night
+  s.albedo = mix(P_STONE, P_TAN, 0.25 + 0.2 * pr.seed); s.cover = 0.72;
+  // courses of stone, their joints staggered, and a dark doorway at the foot
+  float course = fract(q.y / 0.62);
+  float ang = atan(q.z, q.x) * 3.0 + floor(q.y / 0.62) * 1.7;
+  s.ink = max(penLine(course - 0.5) * 0.5 * step(q.y, 7.2), penLine(fract(ang) - 0.5) * 0.3 * step(q.y, 7.2));
+  if (q.z > 0.6 && abs(q.x) < 0.3 && q.y < 1.3) { s.albedo = P_CHARCOAL; s.cover = 0.9; s.ink = 0.0; }
+}`,
+});
+
 // ---------------------------------------------------------------- farm, camp and ruin
 
 registerProp({

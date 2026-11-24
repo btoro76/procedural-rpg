@@ -53,6 +53,13 @@ export class WorldTextures {
     return missing.length - n;
   }
 
+  /** Draws one chunk again after its contents changed (a chest opened). */
+  refresh(cx, cz) {
+    const si = ((cz % S + S) % S) * S + ((cx % S + S) % S);
+    const slot = this.slots[si];
+    if (slot && slot.cx === cx && slot.cz === cz) this.upload(this.world.chunk(cx, cz), si);
+  }
+
   upload(chunk, si) {
     const gl = this.gl;
     const sx = si % S, sz = (si / S) | 0;

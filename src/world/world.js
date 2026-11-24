@@ -14,6 +14,7 @@ export class World {
     this.seed = seed;
     this.gen = createWorldGen(seed);
     this.sites = this.gen.sites;
+    this.finds = this.gen.finds;
     this.chunks = new Map();
     this.last = null;
   }
@@ -27,6 +28,16 @@ export class World {
     return (this.last = c);
   }
   hasChunk(cx, cz) { return this.chunks.has(keyOf(cx, cz)); }
+
+  /** Marks a find's chest as opened; returns the chunk [cx, cz] that has to be made and drawn again. */
+  openFind(find) {
+    this.gen.opened.add(find.key);
+    find.built = null;
+    const cx = Math.floor(find.x / N), cz = Math.floor(find.z / N);
+    this.chunks.delete(keyOf(cx, cz));
+    this.last = null;
+    return [cx, cz];
+  }
 
   /** Forget chunks far from a point so a long walk does not grow memory forever. */
   prune(x, z, keepChunks = 14) {

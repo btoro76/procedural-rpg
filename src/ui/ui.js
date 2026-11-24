@@ -4,7 +4,7 @@
 // never calls into the UI.
 
 import { VIEWS } from '../config.js';
-import { xpToNext } from '../game/stats.js';
+import { xpToNext, BOONS } from '../game/stats.js';
 import { SKILLS } from '../game/data/skills.js';
 import { ITEMS } from '../game/data/items.js';
 import { clearSave } from '../game/save.js';
@@ -25,7 +25,7 @@ export function createUI(game) {
     hpBar: $('hp-bar'), foBar: $('fo-bar'), xpBar: $('xp-bar'),
     lvl: $('lvl'), glint: $('glint'), hpFill: $('hp-fill'), hpText: $('hp-text'), foFill: $('fo-fill'), foText: $('fo-text'), xpFill: $('xp-fill'),
     target: $('target'), tName: $('t-name'), tLvl: $('t-lvl'), tFill: $('t-fill'),
-    zone: $('zone'), clock: $('clock'), ring: $('map-ring'), tracker: $('tracker'), trackerText: $('tracker-text'),
+    zone: $('zone'), clock: $('clock'), ring: $('map-ring'), boon: $('boon'), tracker: $('tracker'), trackerText: $('tracker-text'),
     log: $('log'), toast: $('toast'), hotbar: $('hotbar'), menu: $('menu'),
   };
   const last = {};
@@ -136,6 +136,16 @@ export function createUI(game) {
   bus.on('trade', (d) => { if (d.total) log(`Sold materials for <em>${d.total} glint</em>`); });
   bus.on('bounty:claimed', (b) => toast('Bounty paid', `+${b.xp} xp · +${b.glint} glint`));
   bus.on('monster:died', (m) => { if (m.elite) log(`You felled an <em>${m.name}</em>.`); });
+  // finding things: a cache and a beacon are announced; a made place already announces itself on arrival
+  bus.on('found', (d) => {
+    if (d.kind === 'cache') toast('A cache', 'Left under a cairn by someone who never came back for it.', 3.2);
+    else if (d.kind === 'beacon') toast(d.name, d.shown ? `${d.shown} places round about are marked on your map.` : 'Nothing new can be seen from here.', 3.6);
+    else if (d.kind === 'stones') log(`Found <em>${d.name}</em>.`);
+    else log(`Found <em>${d.name}</em>. ${d.count} ${d.count === 1 ? 'place' : 'places'} so far.`);
+  });
+  bus.on('boon', (d) => toast(d.name, `${d.desc} The stones lend it for a few minutes.`, 3.6));
+  bus.on('travel:arrive', (d) => log(`Travelled to <em>${d.name}</em>.`));
+  el.ring.addEventListener('click', (e) => { bus.emit('ui:toggle', 'travel'); if (e.detail) el.ring.blur(); });
 
   // ---- layout: the picture fills the canvas's box (the window, or the top of an
   // upright phone), and the minimap frame tells the renderer where to draw the map
@@ -211,6 +221,14 @@ export function createUI(game) {
     const inSite = site && Math.hypot(site.x - p.x, site.z - p.z) < site.clear + 6;
     set('zone', el.zone, 'textContent', inSite ? site.name : game.biome.name);
     set('clock', el.clock, 'textContent', HOURS.find((h) => game.hour < h[0])?.[1] || 'Night');
+
+    const boon = s.boon;
+    set('boonHid', el.boon, 'hidden', !boon);
+    if (boon) {
+      const left = Math.max(0, Math.ceil(boon.left));
+      set('boonT', el.boon, 'textContent', `${BOONS[boon.id].name} ${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}`);
+    }
+    if (last.boonC !== !!boon) { last.boonC = !!boon; document.body.classList.toggle('boon', !!boon); }
 
     const b = s.bounty;
     set('trHid', el.tracker, 'hidden', !b);

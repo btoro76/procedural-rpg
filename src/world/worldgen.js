@@ -11,6 +11,7 @@ import { clamp, lerp, smoothstep } from '../core/math.js';
 import { BIOMES } from './biomes.js';
 import { propById } from './props.js';   // (also registers every prop's shader)
 import { createSites } from './sites.js';
+import { createFinds } from './finds.js';
 
 const N = WORLD.CHUNK, CELL = WORLD.CELL, CPC = N / CELL; // cells per chunk edge
 const L = WORLD.ROAD_L;
@@ -53,6 +54,8 @@ export function createWorldGen(seed) {
   }
 
   const sites = createSites(S, naturalHeight, (x, z, h) => BIOMES[biomeWeights(sampleClimate(x, z, h))].id);
+  const finds = createFinds(S, (x, z) => height(x, z), sites);
+  const opened = new Set();       // keys of finds whose chest has been opened (the game fills this from the journey)
 
   function height(x, z) {
     let h = naturalHeight(x, z);
@@ -114,6 +117,8 @@ export function createWorldGen(seed) {
     const cxw = (ccx + 0.5) * CELL, czw = (ccz + 0.5) * CELL;
     const site = sites.near(cxw, czw);
     if (site && Math.hypot(cxw - site.x, czw - site.z) < site.clear) return null;
+    const find = finds.near(cxw, czw);
+    if (find && Math.hypot(cxw - find.x, czw - find.z) < find.clear) return null;      // nothing grows on a find
     const h0 = height(cxw, czw);
     if (h0 < 0.3) return null;
     if (roadDist(cxw, czw) < 4.2) return null;
@@ -162,6 +167,8 @@ export function createWorldGen(seed) {
       return {
         def, type: def.type, x: s.x, y: height(s.x, s.z) - 0.04, z: s.z, scale: s.scale || 1,
         rot: s.rot || 0, seed: s.seed ?? hash01(i, site.i * 31 + site.j, S + 40), pal: s.pal || 0, site,
+        // an opened chest stands open (the game keeps the set of opened finds on the generator)
+        ...(def.id === 'chest' && opened.has(site.key) ? { pal: 1 } : null),
       };
     });
     return site.built;
@@ -287,7 +294,10 @@ export function createWorldGen(seed) {
       return true;
     };
 
-    if (site && Math.hypot(site.x - (x0 + N / 2), site.z - (z0 + N / 2)) < site.clear + N) {
+    const made = [];      // every made place whose structures may reach this chunk: the site, and finds
+    if (site && Math.hypot(site.x - (x0 + N / 2), site.z - (z0 + N / 2)) < site.clear + N) made.push(site);
+    for (const f of finds.inRange(x0 + N / 2, z0 + N / 2, N)) made.push(f);
+    for (const site of made) {
       for (const p of structureProps(site)) {
         const R = p.def.reach * p.scale;
         if (p.x + R < x0 - 2 || p.x - R > x0 + N + 2 || p.z + R < z0 - 2 || p.z - R > z0 + N + 2) continue;
@@ -297,7 +307,7 @@ export function createWorldGen(seed) {
           // does the prop's circle touch this cell's square?
           const nx = clamp(p.x, x0 + ci * CELL, x0 + (ci + 1) * CELL), nz = clamp(p.z, z0 + cj * CELL, z0 + (cj + 1) * CELL);
           if (Math.hypot(nx - p.x, nz - p.z) < R && !stamp(p, ci, cj)) {
-            console.warn(`Site ${site.name}: ${p.def.id} overlaps another structure in one cell`);
+            console.warn(`${site.name}: ${p.def.id} overlaps another structure in one cell`);
           }
         }
       }
@@ -313,5 +323,5 @@ export function createWorldGen(seed) {
     return chunk;
   }
 
-  return { seed: S, height, naturalHeight, roadDist, sampleClimate, biomeWeights, generateChunk, sites, forest };
+  return { seed: S, height, naturalHeight, roadDist, sampleClimate, biomeWeights, generateChunk, sites, finds, opened, forest };
 }

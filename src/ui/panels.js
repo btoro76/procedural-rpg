@@ -2,7 +2,7 @@
 // function that rebuilds its body from game state; clicks call game systems.
 // Everything in here is reachable by mouse.
 
-import { ATTRIBUTES, derive, xpToNext } from '../game/stats.js';
+import { ATTRIBUTES, BOONS, derive, xpToNext } from '../game/stats.js';
 import { ITEMS, SHOP_STOCK } from '../game/data/items.js';
 import { SKILLS } from '../game/data/skills.js';
 import { VIEWS } from '../config.js';
@@ -19,7 +19,7 @@ export class Panels {
     bus.on('ui:toggle', (id) => this.toggle(id));
     bus.on('ui:close', () => this.closeAll());
     bus.on('npc:talk', (npc) => { this.trader = npc; this.show(npc.role === 'shop' ? 'shop' : 'bounty'); });
-    for (const ev of ['bag:changed', 'levelup', 'trade', 'bounty:changed', 'xp']) bus.on(ev, () => this.refresh());
+    for (const ev of ['bag:changed', 'levelup', 'trade', 'bounty:changed', 'xp', 'attune', 'found', 'boon']) bus.on(ev, () => this.refresh());
 
     root.addEventListener('click', (e) => {
       const b = e.target.closest('[data-act]');
@@ -42,6 +42,7 @@ export class Panels {
       shop: { title: 'Trade', side: 'right', body: () => this.shop() },
       bounty: { title: 'Bounty Board', side: 'right', body: () => this.bounty() },
       view: { title: 'View', side: 'right', body: () => this.view() },
+      travel: { title: 'Waystones', side: 'right', body: () => this.travel() },
       help: { title: 'How to Play', side: '', body: () => this.help() },
     }[id];
   }
@@ -88,6 +89,7 @@ export class Panels {
     else if (name === 'abandon') g.bounties.abandon();
     else if (name === 'claim') g.bounties.claim();
     else if (name === 'guide') { this.closeAll(); g.bus.emit('guide:restart'); return; }
+    else if (name === 'travel') { if (g.discover.travel(+arg)) this.closeAll(); return; }
     else if (name === 'cam') {
       const cam = g.camera;
       if (arg === 'left') cam.rotate(0.5, 0); else if (arg === 'right') cam.rotate(-0.5, 0);
@@ -189,6 +191,21 @@ export class Panels {
        <button type="button" class="btn" data-act="accept" data-arg="${i}">Accept</button></div>`).join('');
   }
 
+  /** Where the hero can go at once, and what the journey has found so far. */
+  travel() {
+    const g = this.game, p = g.player, s = p.sheet;
+    const ways = s.ways.map((w, i) => ({ w, i, d: Math.hypot(w.x - p.x, w.z - p.z) })).sort((a, b) => a.d - b.d);
+    const rows = ways.map(({ w, i, d }) => `<div class="way"><strong>${esc(w.name)}</strong><small>${d < 12 ? 'You are here' : `${Math.round(d)} paces away`}</small>
+      <button type="button" class="btn" data-act="travel" data-arg="${i}" ${d < 12 ? 'disabled' : ''}>Go</button></div>`).join('');
+    const known = Object.keys(s.known).length;
+    return `
+      <div class="row"><p>${g.discover.count()} ${g.discover.count() === 1 ? 'place' : 'places'} found</p><p class="dim">${known ? `${known} more marked on the map` : ''}</p></div>
+      ${s.boon ? `<p>${BOONS[s.boon.id].name}: ${BOONS[s.boon.id].desc}</p>` : ''}
+      <div class="label">Waystones you are attuned to</div>
+      ${rows}
+      <p class="dim">${ways.length < 2 ? 'Walk up to a waystone to attune to it. You can then travel to it from anywhere, when no fight is on.' : 'Travel takes a moment, and cannot be done in the middle of a fight.'}</p>`;
+  }
+
   /** Every way of turning and zooming the view that needs a drag, a pinch or a wheel is also a button here. */
   view() {
     const d = document;
@@ -212,8 +229,9 @@ export class Panels {
       <kbd>Arrows</kbd><span>Picks the next creature.</span>
       <kbd>Flasks</kbd><span>Drink a Red Tonic or a Blue Draught.</span>
       <kbd>Drag / pinch</kbd><span>Drag the picture to turn and tilt the view, pinch to zoom. The View menu has buttons for both.</span>
+      <kbd>The map</kbd><span>Tap it for the waystones you can travel to, and what you have found.</span>
     </div>
-    <p class="dim">Loot is picked up by walking over it. Waystones mend you and become the place you return to. The farther from Hearthmere, the stronger the wilds.</p>
+    <p class="dim">Loot is picked up by walking over it. Waystones mend you and become the place you return to. A sun-yellow mark at the map's rim points to somewhere not yet found: caches under cairns, standing stones that lend a boon, beacons that show the country round. The farther from Hearthmere, the stronger the wilds.</p>
     <button type="button" class="btn" data-act="guide">Show me the first steps again</button>`;
     return `<div class="keys-list">
       <kbd>Left click</kbd><span>Walk to a spot, attack a creature, talk to townsfolk. Hold to keep walking.</span>
@@ -224,8 +242,9 @@ export class Panels {
       <kbd>Right drag</kbd><span>Turn and tilt the view. <kbd>Q</kbd> <kbd>E</kbd> also turn it.</span>
       <kbd>Wheel</kbd><span>Zoom.</span>
       <kbd>C / B / V</kbd><span>Character sheet, bag, and buttons for the view.</span>
+      <kbd>T / the map</kbd><span>Waystones you can travel to, and what you have found.</span>
     </div>
-    <p class="dim">Loot is picked up by walking over it. Waystones mend you and become the place you return to. The farther from Hearthmere, the stronger the wilds.</p>
+    <p class="dim">Loot is picked up by walking over it. Waystones mend you and become the place you return to. A sun-yellow mark at the map's rim points to somewhere not yet found: caches under cairns, standing stones that lend a boon, beacons that show the country round. The farther from Hearthmere, the stronger the wilds.</p>
     <button type="button" class="btn" data-act="guide">Show me the first steps again</button>`;
   }
 }

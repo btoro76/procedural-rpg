@@ -42,7 +42,7 @@
   <section id="status" class="plate" aria-label="Your character">
     <div class="badge" id="lvl" title="Level">1</div>
     <div class="bars">
-      <div class="who"><span id="pname">Wayfarer</span><span id="glint" class="coin" title="Glint">20</span></div>
+      <div class="who"><span id="pname">Wayfarer</span><span id="boon" class="boon" hidden></span><span id="glint" class="coin" title="Glint">20</span></div>
       <div class="meter"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 14C3 10 1.5 7.4 2.6 5c1-2.2 4-2.1 5.4.2 1.4-2.3 4.4-2.4 5.4-.2 1.1 2.4-.4 5-5.4 9z" fill="#d8584a" stroke="#623c1e" stroke-width="1.3" stroke-linejoin="round"/></svg><div class="bar hp" id="hp-bar" role="meter" aria-label="Health" aria-valuemin="0"><i id="hp-fill"></i></div><b id="hp-text">0 / 0</b></div>
       <div class="meter"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 1.6c2.4 3.2 4.6 5.6 4.6 8.2a4.6 4.6 0 0 1-9.2 0c0-2.6 2.2-5 4.6-8.2z" fill="#4f86b4" stroke="#623c1e" stroke-width="1.3" stroke-linejoin="round"/></svg><div class="bar fo" id="fo-bar" role="meter" aria-label="Focus" aria-valuemin="0"><i id="fo-fill"></i></div><b id="fo-text">0 / 0</b></div>
       <div class="bar xp" id="xp-bar" role="meter" aria-label="Experience toward the next level" aria-valuemin="0" aria-valuemax="100"><i id="xp-fill"></i></div>
@@ -55,7 +55,7 @@
   </section>
 
   <section id="compass" aria-label="Map and place">
-    <div id="map-ring"></div>
+    <button type="button" id="map-ring" title="Map and waystones (T)" aria-label="Map: waystones to travel to and places found, key T"></button>
     <div id="place" class="plate small"><span id="zone">Hearthmere</span><span id="clock" class="dim">Morning</span></div>
   </section>
 
