@@ -48,7 +48,8 @@ Then open the address it prints (`http://localhost:5173`). Add `?new` to open th
 | `npm run check` | Type-check and tests |
 | `npm run build` | Type-check, then a release build in `dist/` |
 | `npm run preview` | Serves `dist/` |
-| `./publish.sh` | Checks, builds and pushes `dist/` to the `gh-pages` branch |
+
+Every push to `main` is tested, built and published by GitHub Actions (`.github/workflows/deploy.yml`), which writes the build to the `gh-pages` branch that GitHub Pages serves. It can also be run by hand from the Actions tab.
 
 ## Controls
 
@@ -114,6 +115,7 @@ There is no edge. Land is generated chunk by chunk as it comes into view; a chun
 ## Layout
 
 ```
+.github/workflows/      the deploy on every push to main
 index.html              the page
 public/static/          favicon, app icons, share picture, web app manifest
 tools/                  the release build's shader trimming
