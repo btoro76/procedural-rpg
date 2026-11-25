@@ -1,39 +1,20 @@
-// Entity pass. Every creature is a small signed-distance model raymarched
-// inside a camera-facing quad ("impostor"), instanced per archetype, and drawn
-// at full device resolution in the same hand as the world: a bold ballpoint
-// contour, pencil hatching that rides with the figure, bare paper for skin and
-// light. Figures boil quietly (their hatching is re-laid six times a second)
-// and are posed on twos by the view.
-//
-// An archetype is a GLSL chunk that defines three functions:
-//
-//   void  entPose();                              once per pixel: set up joints
-//   float entMap(vec3 p, out float mat);          distance field; feet at y=0, facing +z
-//   void  entSurf(vec3 p, float mat, inout Surf s);   which pencil, how firmly, what pen marks
-//
-// and may read:  ePose  (walk phase, action id, action progress, movement 0..1)
-//                eLook  (seed, hit flash, shade from scenery, flags)
-//                eColA / eColB / eColC  (three pencils), eExtra (variant)
-//
-// registerArchetype() is the only thing a new creature needs to call.
-
 import { Program } from '../gl.js';
 import '../glsl/lighting.js';
+import { glsl } from '../shaderlib.js';
 
 export const ARCHETYPES = new Map();
 export const INSTANCE_FLOATS = 24;
 
-/** def: { id, boundY, boundR, glsl, steps? } — bound = sphere that contains every pose at scale 1 */
 export function registerArchetype(def) {
   ARCHETYPES.set(def.id, def);
   return def;
 }
 
-const ENTITY_VS = /* glsl */ `
+const ENTITY_VS = glsl`
 layout(location = 0) in vec4 iPosScale;
-layout(location = 1) in vec4 iPose;     // yaw, walk phase, action, action progress
-layout(location = 2) in vec4 iLook;     // seed, flash, shade, flags
-layout(location = 3) in vec4 iColA;     // rgb, movement
+layout(location = 1) in vec4 iPose;
+layout(location = 2) in vec4 iLook;
+layout(location = 3) in vec4 iColA;
 layout(location = 4) in vec4 iColB;
 layout(location = 5) in vec4 iColC;
 uniform mat4 uViewProj;
@@ -52,13 +33,13 @@ void main() {
 }
 `;
 
-const entityFS = (def) => /* glsl */ `
+const entityFS = (def) => glsl`
 in vec3 vWorld;
 flat in vec4 vPosScale, vPose, vLook, vColA, vColB, vColC;
-layout(location = 0) out vec4 oColor;   // premultiplied, already drawn (paper, pencil, pen)
-layout(location = 1) out vec4 oAux;     // ray distance, hero flag, how much of this pixel is contour
+layout(location = 0) out vec4 oColor;
+layout(location = 1) out vec4 oAux;
 uniform vec2 uBound;
-uniform float uFar, uPixel;             // uPixel: world size of one pixel at distance 1
+uniform float uFar, uPixel;
 
 #include <common>
 #include <frame>
@@ -96,23 +77,21 @@ void main() {
   float t = max(-b - h, 0.0), tEnd = -b + h;
 
   entPose();
-  float pix = uPixel / scale;                 // local size of a pixel per unit distance
+  float pix = uPixel / scale;
   float mat = 0.0, minD = 1e3, tEdge = t, inner = 0.0;
   bool hit = false;
-  // the contour: a bold line about a fiftieth of the figure's height, never thinner than the pen
   float w = max(OUTLINE_PX * pix * t, 0.03);
   for (int i = 0; i < ${def.steps || 56}; i++) {
     float d = entMap(lo + ld * t, mat);
     if (d < 0.5 * pix * t) { hit = true; break; }
     if (d < minD) { minD = d; tEdge = t; }
-    else if (minD < w * 0.6 && d > minD + w * 0.5) inner = max(inner, smoothstep(w * 0.6, w * 0.25, minD));   // a part in front of another
+    else if (minD < w * 0.6 && d > minD + w * 0.5) inner = max(inner, smoothstep(w * 0.6, w * 0.25, minD));
     t += d * 0.92;
     if (t > tEnd) break;
   }
   vec3 pe = lo + ld * tEdge;
-  float press = mix(0.72, 1.0, vnoise(pe.xy * 5.0 + eLook.x * 31.0));          // the hand presses unevenly
+  float press = mix(0.72, 1.0, vnoise(pe.xy * 5.0 + eLook.x * 31.0));
   float contour = hit ? 0.0 : smoothstep(w, w * 0.5, minD);
-  // now and then the pen goes round twice, a little outside the first line
   float again = hit ? 0.0 : smoothstep(1.85 * w, 1.65 * w, minD) * smoothstep(1.2 * w, 1.35 * w, minD)
     * step(0.76, vnoise(pe.xy * 1.6 + eLook.x * 9.0)) * 0.3;
   float edge = max(max(contour, inner) * press, again);
@@ -127,24 +106,19 @@ void main() {
     vec3 p = lo + ld * t;
     vec3 n = entNormal(p);
     Surf s = newSurf();
-    gPen = max(pix * t * 1.5 * uPencil.w, 0.006);     // inner pen lines: finer than the contour
+    gPen = max(pix * t * 1.5 * uPencil.w, 0.006);
     entSurf(p, mat, s);
     mat2 back = transpose(R);
     vec3 N = vec3(back * n.xz, n.y).xzy;
     vec3 wp = uCamPos + rdW * (t * scale);
 
-    // form shadow: one hatched piece along the underside (light from straight above),
-    // plus whatever shade the scenery throws over the figure
     float shade = max(smoothstep(0.2, -0.45, N.y) * 0.85, (1.0 - eLook.z) * 0.75) * s.occ;
-    // by lamplight a figure keeps its own pencils; away from it, the night's
     float pool = lightPool(wp, N);
-    float lift = max(s.glow, eLook.y);                         // its own light, and the flash of a blow, are paper
+    float lift = max(s.glow, eLook.y);
     vec3 pig = mix(s.albedo, nightPencil(s.albedo), uNight * (1.0 - max(pool, s.glow)) * 0.8);
     float cover = s.cover * (1.0 - 0.9 * lift);
     shade *= (1.0 - lift) * (1.0 - 0.5 * pool);
 
-    // the hatching rides with the figure, and is laid afresh six times a second
-    // (on a sheet facing the camera through the figure's feet, so strokes stay straight on the page)
     float sheet = max(dot(vPosScale.xyz - uCamPos, uCamFwd), 0.5);
     vec3 rel = uCamPos + rdW * (sheet / dot(rdW, uCamFwd)) - vPosScale.xyz;
     vec2 boil = (hash22(vec2(uPencil.z, eLook.x * 91.0)) - 0.5) * 0.01;
@@ -183,7 +157,6 @@ export class EntityPass {
     gl.bindVertexArray(null);
   }
 
-  /** Compiles on first use, so an archetype nobody has met costs nothing. */
   program(id) {
     let p = this.programs.get(id);
     if (!p) {
@@ -196,7 +169,6 @@ export class EntityPass {
     return p;
   }
 
-  /** batches: Map(archetypeId -> { data: Float32Array, count }) */
   render(target, frame, batches, applyFrame) {
     const gl = this.gl;
     target.bind();
@@ -214,7 +186,7 @@ export class EntityPass {
       if (!batch.count) continue;
       const p = this.program(id).use();
       applyFrame(p);
-      p.set('uTime', frame.timeTwos);       // figures move on twos
+      p.set('uTime', frame.timeTwos);
       p.set('uViewProj', frame.camera.viewProj).set('uBound', [p.def.boundY, p.def.boundR]);
       p.set('uFar', frame.far).set('uPixel', 2 * frame.camera.tan[1] / target.height);
       const bytes = batch.count * INSTANCE_FLOATS * 4;

@@ -1,19 +1,8 @@
-// Finds are the small things between the made places: a chest under a cairn,
-// a ring of stones that lends a boon, a watch tower whose fire can be seen
-// over the trees. One may stand in each cell of a coarse grid, where the land
-// is dry and no site is near; which kind, where in the cell and what it is
-// called all come from the seed. They give the wilds somewhere to go.
-//
-// A find kind is a row here: what to build (props, each in its own 4x4 prop
-// cell: the centre snaps to a cell's middle and companions sit one cell away)
-// and a name. What happens when the hero reaches one is the game's business
-// (game/systems/discover.js).
-
 import { WORLD } from '../config.js';
 import { hash01 } from '../core/rng.js';
 import { placeName } from './sites.js';
 
-const F = 96;                 // one cell of the finds grid
+const F = 96;
 const C = WORLD.CELL;
 
 export const FIND_KINDS = {
@@ -45,7 +34,6 @@ export function createFinds(seed, height, sites) {
     if (cache.has(key)) return cache.get(key);
     let find = null;
     if (hash01(i, j, seed + 701) < 0.62) {
-      // somewhere in the middle of the cell, on the middle of a prop cell
       const x = (Math.floor((i + 0.2 + 0.6 * hash01(i, j, seed + 702)) * F / C) + 0.5) * C;
       const z = (Math.floor((j + 0.2 + 0.6 * hash01(i, j, seed + 703)) * F / C) + 0.5) * C;
       const h = height(x, z), site = sites.near(x, z);
@@ -64,9 +52,7 @@ export function createFinds(seed, height, sites) {
 
   return {
     findAt,
-    /** The only find that can stand near this point. */
     near: (x, z) => findAt(Math.floor(x / F), Math.floor(z / F)),
-    /** Every find within `range` of (x, z). */
     inRange(x, z, range) {
       const out = [];
       for (let i = Math.floor((x - range) / F); i <= Math.floor((x + range) / F); i++) for (let j = Math.floor((z - range) / F); j <= Math.floor((z + range) / F); j++) {

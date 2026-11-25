@@ -1,6 +1,6 @@
 # Brushwild
 
-An open world drawn in ballpoint and coloured pencil on cream paper, that you can play in a browser, on a desktop or a phone. Walk and fight, gather loot, level up, and wander as far as you like: the land is generated as you go. Every pixel of the game is drawn by shaders — it uses no image files, no models and no libraries.
+An action RPG drawn in ballpoint and coloured pencil on cream paper, played in a browser on a desktop, a phone or with a gamepad. Pick a class, grow a skill tree, chase loot through five rarities, clear dungeons, and wander as far as you like: the land is generated as you go. The world is drawn entirely by shaders, and every item and class plate is drawn in code, so the game ships no textures, models or sprite sheets.
 
 **Play it: https://kevintngo.github.io/procedural-rpg/**
 
@@ -15,176 +15,177 @@ The art style is carried over from Valsera, a 2D game drawn the same way, from b
 
 ## What there is to do
 
-- **Fights you have to move in.** Every creature has a move of its own, and it is drawn on the ground before it lands: Sproutlings leap, Puffcaps leave a cloud of spores, Bristlehogs charge down a lane (and stand winded if they miss), Wisps keep their distance and throw motes, Craglings slam the ground, Shellsnaps tuck into their shells, where blows glance off, and snap out. Step out of the mark and it misses.
-- **Things to find.** Away from the roads there are caches to open, rings of standing stones that lend a boon for four minutes (hit harder, run faster or more health), and beacons that mark the places around them on the map. A shrine is a waystone: once reached, you can travel back to it from any other.
-- **A choice at every level.** A level gives three attribute points and one talent picked from three, out of thirteen. Some change a skill (Ember Bolt throws two motes, Gale Step cuts what it passes through), some change you. What creatures drop can be made into flasks and charms at a trader.
-- **Work from the warden.** Bounties come in four kinds: cull a number of creatures, bring back what they drop, find a place and report back, or slay the elder living in a ruin. The Long Walk is an errand that never ends: every new country you set foot in pays experience, and the 4th, 8th and 13th pay a talent.
-- **Night and falling.** After dark, creatures notice you from farther off and hit a fifth harder, and pay 60% more glint and 30% more experience. Falling costs a fifth of your glint: it lies where you fell, marked on the map, until you go back for it.
-- **Blows with weight.** A hit that lands holds the world still for an instant, longer for a critical hit or a kill. While health is low the corners of the page are scribbled red and the health bar is ringed. Every warning and reward has a sound.
+- **Three classes.** The Warden fights close with sword and shield and earns Resolve from every blow given or taken. The Emberwright casts fire, frost and storm from a staff on Focus. The Strider keeps the roads with bow, daggers and traps on Breath. Each has its own skills, passives and key passives, and its own look (tunic or robe colour and hair are chosen when the hero is made).
+- **A skill tree.** Seven branches, from Basic down to Ultimate and the Key Passives, each opened by points spent above it. A skill has five ranks, an enhancement and a choice of two upgrades. Points come with every level up to 50; refunds cost glint later on.
+- **Loot worth reading.** Common, Magic, Rare, Legendary and Unique gear across ten slots, with rolled affixes, legendary powers and named uniques. Every item has its own drawing, tooltips compare it with what you wear in exact numbers, and drops lean toward your class. Smiths salvage, enchant and sell; alchemists brew stronger tonics; a stash is shared by every hero.
+- **Fights you have to move in.** Every creature has a move of its own, drawn on the ground before it lands: Sproutlings leap, Puffcaps leave spores, Bristlehogs charge down a lane, Wisps keep their distance and throw motes, Craglings slam the ground, Shellsnaps tuck in and snap out. Step out of the mark and it misses. Elites roll affixes; dungeon bosses change at half health.
+- **Towns and dungeons.** Market towns sit along the roads with a waystone, smith, alchemist, warden and stash. Crypts and caves open off the road: halls to clear, a boss in the farthest room, a hoard in a quiet one.
+- **Things to find.** Caches, standing stones that lend a boon for a while, beacons that mark the places around them, and waystones to travel between.
+- **Work from the warden.** Bounties to cull, gather, scout, slay an elder or clear a dungeon. The Long Walk pays for every new country you set foot in.
+- **Night and falling.** After dark creatures notice you from farther off and hit harder, and pay better. Falling drops part of your glint where you fell, marked on the map, until you go back for it.
+- **Blows with weight.** A hit that lands holds the world still for an instant, longer for a critical hit or a kill. Arrows fly as real arrows on an arc and stick where they miss.
+- **Four difficulties.** Story, Normal, Veteran and Nightmare, changeable in town.
 
 ## Run it
 
-Any static file server works; the source runs as plain ES modules with no build step.
+Needs Node 20.19 or later.
 
 ```bash
-python3 -m http.server 8080
+npm install
 ```
-
-Then open `http://localhost:8080`. Add `?new` to the address to start a fresh journey (progress is kept in the browser's local storage), and `?touch` to see the phone interface on a desktop.
-
-To pack the release into `dist/` (one `index.html` with the script and styles inside it, plus the `static/` folder):
 
 ```bash
-node build.js
+npm run dev
 ```
 
-(Needs Node, and network access the first time, when `npx` fetches esbuild.) The `gh-pages` branch holds that folder; `./publish.sh` rebuilds it and pushes it.
+Then open the address it prints (`http://localhost:5173`). Add `?new` to open the new-hero screen, and `?touch` to see the phone interface on a desktop. Progress is kept in the browser's local storage; Settings › Saves exports and imports it as a file.
+
+| Script | Does |
+| --- | --- |
+| `npm run dev` | Dev server with module reload |
+| `npm test` | Rules and save tests (Vitest) |
+| `npm run typecheck` | TypeScript, strict |
+| `npm run check` | Type-check and tests |
+| `npm run build` | Type-check, then a release build in `dist/` |
+| `npm run preview` | Serves `dist/` |
+| `./publish.sh` | Checks, builds and pushes `dist/` to the `gh-pages` branch |
 
 ## Controls
 
-| Input | Action |
+Every action can be rebound in Settings › Controls (two keys and a pad button each).
+
+| Keyboard and mouse | Action |
 | --- | --- |
-| Left click | Walk to a spot, attack a creature, talk to townsfolk. Hold to keep walking. |
-| W A S D | Walk by hand |
-| 1 2 3 4 | Skills (aim at the target, or at the cursor) |
-| R / F | Drink a Red Tonic / Blue Draught |
-| Space / Tab | Attack the nearest creature / pick the next one |
-| Right drag, Q / E | Turn and tilt the view. A journey starts low behind the hero, looking to the horizon; tilt up for the view from above. |
-| Wheel | Zoom |
-| C / B / V | Character sheet (attributes and talents) / bag / the view (two ready-made views, and buttons to turn, tilt and zoom) |
-| T / M | Travel between waystones / sound on and off |
+| Left click | Walk, attack, talk, pick up. Hold to keep walking or attacking. |
+| Right click, 1 2 3 4 | Skills |
+| W A S D | Walk |
+| Space | Evade |
+| F | Attack the nearest creature, talk, use a door |
+| R | Drink a tonic |
+| Tab | Next target |
+| Shift | Stand still and attack in place |
+| Q / E, right drag, wheel | Turn the view, tilt it, zoom |
+| I or B / C / K / J / M / V | Inventory / character / skill tree / journal / map / view |
+| Alt (hold) | Show every item label; in a tooltip, the range each line can roll |
+| Esc | Menu, or close what is open |
 
-On a touch screen:
-
-| Input | Action |
+| Gamepad | Action |
 | --- | --- |
-| Stick (left thumb) | Walk. It appears where the thumb lands; pushed part-way it strolls. |
-| Tap the picture | Walk to a spot, attack a creature, talk to townsfolk |
-| Sword button | Attack the nearest creature, or talk to someone close. Hold it to carry the fight on to the next creature. |
-| Round buttons | Skills (aim at the target, or at the nearest creature) and the two flasks |
-| Arrows button | Pick the next creature |
-| Drag the picture / pinch | Turn and tilt the view / zoom. The View menu has buttons for both. |
-| Tap the map | Travel between waystones |
+| Left stick / right stick | Walk / turn the view |
+| A | Attack the nearest creature, talk, use |
+| X, Y, B, RB, RT | Skills |
+| LT / LB | Evade / tonic |
+| D-pad | Next target (right), skill tree (left), zoom (up and down) |
+| Back / Start / right stick click | Inventory / menu / show every item label. Menus are driven with the stick and A. |
 
-Held sideways, the picture fills the screen and the controls sit in its corners. Held upright, the picture is a strip across the top (16:9, growing to 5:4 on a tall phone) and everything else is laid out on the page below it: status, messages, menus, then the stick and the buttons under the thumbs.
+On a touch screen a stick appears under the left thumb, the skills sit in an arc under the right, the big button attacks the nearest creature (hold it to carry the fight on), and tapping the picture walks. Held sideways the picture fills the screen; held upright it is a strip across the top with everything else laid out below.
 
 | | |
 | --- | --- |
 | ![Upright on a phone](docs/phone-upright.jpg) | ![Sideways on a phone](docs/phone-sideways.jpg) |
 
-A new journey opens with five first steps, each finished by doing it: walk to a ring, turn the view, fight a practice creature, use a skill, take a bounty. A plate says what to try, the button to press is ringed in red, and an arrow at the edge of the picture points to a goal that is out of sight. It can be skipped, and the How to Play sheet brings it back. Later, a one-line tip appears the first time it is needed (a flask when health runs low, the character sheet when there are points to spend).
+A new journey opens with a few first steps, each finished by doing it; they can be skipped, and the menu brings them back.
 
 ## How it is drawn
 
-1. **World pass** — one full-screen raymarch of the terrain heightfield, every prop (trees, rocks, houses are signed-distance shapes) and the sea. It does not produce a picture. For every pixel it decides *what is to be drawn*: which pencil, how firmly it is laid, how much shading goes over it, and what pen marks sit on it (stone joints, roof courses, leaf scribble). It runs at an internal resolution that adapts to measured GPU time.
+1. **World pass** — one full-screen raymarch of the terrain heightfield, every prop (trees, rocks, houses and dungeon walls are signed-distance shapes) and the sea. For every pixel it decides *what is to be drawn*: which pencil, how firmly, how much shading, and what pen marks sit on it. It runs at an internal resolution that adapts to measured GPU time.
 2. **Ink pass** — finds the contours from depth steps, object silhouettes and folds.
-3. **Entity pass** — each creature is a small distance-field model raymarched inside a camera-facing quad at full device resolution, already drawn in the same hand: bold contour, pencil hatching that rides with the figure and is re-laid six times a second (a quiet boil), poses stepped on twos. Effects are pen-and-paper marks in the same layer.
-4. **Final pass** — draws the page at device resolution: paper with tooth, the pencil lay in strokes, a second lay of a deeper pencil for shade, pen doodles (grass tufts, ripples), the pen along the contours (wobbling, pressing unevenly, sometimes going over twice), then the figures on top. A hero hidden behind scenery is shown as a pen outline, never as a faded figure. The minimap is a little paper map drawn here too.
+3. **Entity pass** — each figure is a small distance-field model raymarched inside a camera-facing quad: heroes with their class kit and the gear they wear, creatures, arrows tilted along their flight. Bold contour, hatching that rides with the figure and is re-laid six times a second, poses stepped on twos.
+4. **Final pass** — paper with tooth, the pencil lay in strokes, a deeper pencil for shade, pen doodles (grass tufts, ripples), the pen along the contours, then the figures on top. A hero hidden behind scenery is shown as a pen outline. The minimap is drawn here too.
 
-Hatching is laid in *paper coordinates*: positions on flat sheets, projected on the right and up axes of a held view direction. That direction stays put while the camera travels or turns, so strokes stay glued to the world and never swim; once the view has turned about 17 degrees away from it, or has come to rest, a fresh one fades in over a fraction of a second. Strokes therefore keep the page's one slant to within a few degrees, and exactly at rest. Stroke size is chosen per depth from nested levels, so hatching is the same width near and far. There is no bloom, blur or tone mapping: nothing is lighter than the paper, night is drawn with indigo pencils and a lamp is a pool of bare paper, and distance is drawn by laying less until the page is blank.
+Hatching is laid in *paper coordinates*, projected on the right and up axes of a held view direction, so strokes stay glued to the world while the camera moves and a fresh direction fades in once the view has turned far enough. Stroke size is chosen per depth from nested levels, so hatching is the same width near and far. There is no bloom, blur or tone mapping: nothing is lighter than the paper, night is drawn with indigo pencils, a lamp is a pool of bare paper, and distance is drawn by laying less.
 
-The CPU generates the world in 32×32 chunks (`src/world/worldgen.js`) and uploads them into five wrap-around textures; the shader reads those same textures, so gameplay and picture always agree.
+The interface uses the same hand: item and class pictures are SVG drawn by `src/ui/art.ts`, seeded by each item, so two swords of the same kind still differ in blade, guard and dye, with the rarity's colour as their light.
 
 ## What is generated
 
 Everything outside the starting town comes from the seed:
 
 - **Terrain** — continents, hills, mountain ranges, rivers, lakes and marsh pools, roads on a wandering lattice.
-- **Thirteen biomes**, chosen from five slow fields (warmth, wet, enchantment, wildness, distance from home). Each has its own ground pencils, stone, plants and beasts: Larkmeadow, Petalwood, Deepfir, Amberwood, Saltreach, Skyfell, Strawmere, Reedmarsh, Hoarwood, Roseheath, Capwood, Silverbirch, Cinderfell.
-- **Woods with a colour of their own** — trees take one of their biome's leaf pencils, mostly the one their district favours, with a few strays.
-- **Sites** at road crossings: shrines, travellers' camps (with a tinker who trades), ruins (with an elder beast living in them) and farms, each laid out with variations and given a made-up name (Aldwick Camp, Ruins of Fenholt…).
-- **Finds** off the roads, on a grid of their own: caches, rings of standing stones and beacons (`src/world/finds.js`).
-- **Beasts that take after their country** — six body plans become Frost Craglings, Marsh Shellsnaps, Petal Wisps and so on: the biome supplies the coat and the name, distance from town the level.
-- **Weather and hours** — cloud cover drifts; day, dusk and night each change which pencils the page is drawn with.
+- **Thirteen biomes** chosen from five slow fields (warmth, wet, enchantment, wildness, distance from home), each with its own ground pencils, stone, plants and beasts.
+- **Places** at road crossings: shrines, camps with a tinker, ruins with an elder beast, farms, market towns, and dungeon doors, each with a made-up name.
+- **Dungeons** — rooms and corridors on a grid, written in the same chunk format as the open world, so they are drawn by the same shaders.
+- **Finds** off the roads: caches, standing stones and beacons.
+- **Beasts that take after their country** — six body plans become Frost Craglings, Marsh Shellsnaps, Petal Wisps and so on; distance from town sets the level.
+- **Weather and hours** — cloud cover drifts; day, dusk and night each change the pencils.
 
-### How far it goes
-
-There is no edge. Land is generated chunk by chunk as it comes into view and let go behind you; a chunk takes about 3 ms to make, and the generator gives sound terrain 10,000 km from the start. What changes with distance, measured:
-
-- **The mix stays the same.** Sampled in rings from 1 km to 1,000 km out, the land is the same thirteen countries in the same shares (pinewood about 18%, amberwood 13, petalwood 12, heath 11, meadow 10, down to shore at 2 to 3), with about a third of the area under water. Nothing new appears far away; the same ingredients are arranged differently.
-- **Places repeat in kind.** Within 6 km there are 724 places of four kinds (shrines, ruins, camps, farms) besides the town, with 550 different names between them.
-- **The wilds get stronger without limit.** Creatures gain a level every 95 units: level 11 a kilometre out, level 112 at ten.
-- **Deep water stops you.** Shallows can be waded; lakes and sea must be walked round.
-- **The picture is drawn in single precision.** It looks right 20 km out, shows stepped edges at 200 km (about ten hours of running in a straight line), and breaks down by 2,000 km. A floating render origin would lift that.
+There is no edge. Land is generated chunk by chunk as it comes into view; a chunk takes about 3 ms. Creatures gain a level every 95 units. The picture is drawn in single precision, so it looks right 20 km out and starts to show stepped edges at 200 km.
 
 ## Layout
 
 ```
-index.html            page, HUD markup, share and icon tags
-build.js              release build
-publish.sh            builds and pushes dist/ to the gh-pages branch
-static/               the page's own files: favicon, app icons, share picture, web app manifest
+index.html              the page
+public/static/          favicon, app icons, share picture, web app manifest
+tools/                  the release build's shader trimming
 src/
-  config.js           shared tunables (also injected into shaders as #defines)
-  main.js             entry point
-  core/               events, input, device, maths, seeded noise (no game knowledge)
-  world/              generation and queries                     (no GL, runs in Node)
-    biomes.js  props.js  sites.js  finds.js  worldgen.js  world.js
-  gfx/                rendering                                  (no game knowledge)
-    gl.js  shaderlib.js  renderer.js  camera.js  worldTextures.js
-    glsl/             shared shader chunks (pencil.js is the drawing hand and the pencil box)
-    passes/           world, entities, fx, post (ink + final drawing), minimap
-    archetypes/       creature models (GLSL)
-  game/               simulation
-    game.js           owns state, runs systems in order
-    systems/          controls, player, ai, specials (creature moves), hazards, combat, skills, loot,
-                      spawner, discover (finds, boons, travel), bounties, stakes (night, falling), tutorial
-    data/             monsters, items and recipes, skills, talents
-    fx.js  view.js  stats.js  environment.js  save.js
-  ui/                 HUD, nameplates, panels, guide (first steps), touch stick, styles (three layouts in ui.css)
-  audio/              synthesized sound and music
+  main.ts               entry: settings, saves, the game, the interface, sound
+  config.js             shared tunables (also handed to shaders as #defines)
+  engine/               events, seeded RNG, input with an action map and gamepads
+  core/                 maths, noise, device
+  world/                terrain, biomes, props, places, finds, dungeons   (no GL; runs in Node)
+  gfx/                  renderer, camera, passes, shader chunks, figure and arrow models
+  game/
+    content/            classes and skills, effects, statuses, items, monsters, boons, looks
+    rules/              pure rules: stats, damage, items, skill tree, build compiler, inventory, loot
+    state/  save/       the saved character; storage, versions, migrations
+    systems/            controls, player, skills, combat, ai, spawner, loot, zones, vendors, …
+    game.ts  view.ts  fx.ts
+  settings/             settings, defaults, applying them
+  ui/                   Preact interface: HUD, panels, skill tree, settings, screens, art
+  audio/                synthesized sound and music
+docs/ARCHITECTURE.md    how it fits together, and the roadmap
 ```
 
-Three rules keep it growable:
-
-- **Layers point one way.** `core` ← `world` ← `gfx` ← `game` ← `ui`/`audio`. The renderer never reads game objects; `game/view.js` is the one place that turns state into GPU buffers.
-- **Systems do not call each other's internals.** They share state on `game` and announce facts on `game.bus` (`damage`, `monster:died`, `levelup`, …). UI, audio and effects only listen.
-- **Content carries its own shader.** A prop, creature or effect registers its data *and* the GLSL snippet that draws it; programs are assembled from the registries.
+Layers point one way (`engine/core ← world ← gfx ← game ← ui/audio`), systems announce facts on a typed event bus instead of calling each other, and content carries its own shader code. [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) has the details.
 
 ## Adding things
 
 | To add | Do this |
 | --- | --- |
-| A biome | `registerBiome({...})` in `world/biomes.js`: pencils, a `score(climate)` function, prop and monster tables, leaf set, beast variant. |
-| A prop (tree, building…) | `registerProp({...})` in `world/props.js` with `sdf_<id>` (shape) and `mat_<id>` (which pencil, how firmly, what pen marks), then list it in a biome or a site. |
-| A place (camp, ruin…) | `registerSiteKind(id, build)` in `world/sites.js`; return what to flatten, pave and build, and which townsfolk live there. |
-| A monster | A row in `game/data/monsters.js` and an entry in a biome's `monsters`. New shape: `registerArchetype({...})` in `gfx/archetypes/`. |
-| A creature move | An entry in `SPECIALS` in `game/systems/specials.js` (how it begins, and what it does each frame), named by a monster's `special`. |
-| A talent | A row in `game/data/talents.js`, and the line that reads it where it takes effect (`game/stats.js` or a skill's `cast()`). |
-| A bounty kind | An entry in `KINDS` in `game/systems/bounties.js`. |
-| Something to find | A kind in `world/finds.js` (and its prop), and what reaching it does in `game/systems/discover.js`. |
-| A skill | A row with a `cast()` in `game/data/skills.js`. |
-| An item | A row in `game/data/items.js` (and a drop chance on a monster). |
-| An effect | `registerFx(id, glsl)` in `gfx/passes/fx.js`, then spawn it from a recipe in `game/fx.js`. |
-| A game system | A class with `update(dt)`, added to the list in `game/game.js`. |
-| A pencil or a rule of the hand | `gfx/glsl/pencil.js`: the palette, the stroke model, the shading and night pencils. |
-| A post effect | A program in `gfx/passes/post.js`, called from `Renderer.render()`. |
-| A sound | One entry in the event table in `audio/audio.js`. |
+| A class | A `ClassDef` in `src/game/content/classes/` (skills, passives, key passives, resource, start gear) and its entry in `classes/index.ts`. |
+| A skill | A row in its class: a behaviour from `game/systems/behaviors.ts` plus `params`, ranks, enhancement and upgrades as effects. |
+| An item base, affix, legendary power or unique | A row in `game/content/items.ts`. Its drawing comes from its slot or weapon type in `ui/art.ts`. |
+| A monster | A row in `game/content/monsters.ts` and an entry in a biome's `monsters`. A new body: `registerArchetype({...})` in `gfx/archetypes/`. |
+| A creature move | An entry in `game/systems/specials.ts`, named by a monster's `special`. |
+| A biome | `registerBiome({...})` in `world/biomes.js`. |
+| A prop | `registerProp({...})` in `world/props.js` with its shape and its pencils, then list it in a biome or a place. |
+| A place | `registerSiteKind(id, build)` in `world/sites.js`. |
+| A bounty kind | An entry in `KINDS` in `game/systems/bounties.ts`. |
+| An effect | `registerFx(id, glsl)` in `gfx/passes/fx.js`, spawned from a recipe in `game/fx.ts`. |
+| A system | A class with `update(dt)`, added to the list in `game/game.ts`. |
+| A setting | A field in `settings/settings.ts`, a control in `ui/settings.tsx`, and where it applies in `settings/apply.ts`. |
+| A sound | An entry in the event table in `audio/audio.js`. |
+
+Shader code is written in `glsl`-tagged template strings; the release build trims their indentation.
 
 ## Interface and accessibility
 
-The interface is the same paper: cream plates with a pen border, hand lettering, bars filled with pencil hatching. It is held to WCAG 2.2 AA:
+The interface is the same paper: cream plates with a pen border, hand lettering, bars filled with pencil hatching. It is held to WCAG 2.2 AA. Measured contrast on the plate colour `#f1ebdc`:
 
-- Text contrast on the plates is 4.8:1 or better (lettering 10.4:1); borders, bar fills and the focus ring are 3:1 or better. The measured pairs are listed at the top of `src/ui/ui.css`.
-- Every control is a real button, at least 30 px square (40 px or more on a touch screen), with a name for screen readers; bars are meters with their values; messages are announced as status.
-- Keyboard: Tab, Enter and Space work the interface whenever a panel or the title is up or a button has focus, with a visible blue pen ring; C, B and V open panels, Esc closes them.
-- Nothing needs a drag, a pinch or a wheel: tapping the picture walks, and the View panel has buttons for turning, tilting and zooming. Pinch-zooming the page itself is left on.
-- Nothing relies on colour alone (bars carry an icon and numbers), and `prefers-reduced-motion` turns off screen shake, the instant the world is held when a blow lands, and the title's turning view.
-- Lettering never sits on other lettering: name slips are laid out so they clear each other and the HUD, damage numbers start above a creature's slip and step over anything in their way, and the HUD is drawn over the world's labels (`src/ui/plates.js`).
+| Part | Colour | Contrast |
+| --- | --- | --- |
+| Lettering | `#4a2e18` | 10.4:1 |
+| Dim lettering | `#7a5f48` | 5.0:1 |
+| Red / blue / green lettering | `#b3341f` / `#48608f` / `#3d7332` | 5.2 / 5.3 / 4.8:1 |
+| Pen borders | `#623c1e` | 8.1:1 |
+| Bar fills | | 3.3:1 or more |
+| Focus ring | | 5.9:1 |
 
-The game itself is a moving picture played with a mouse, keys or thumbs; it has not been tested with a screen reader beyond the roles above.
+- Every control is a real button with a name for screen readers, at least 30 px square (40 px or more on a touch screen), with a blue pen ring when it has keyboard focus. Bars are meters with values; messages are announced.
+- Keyboard and gamepad reach everything, including the bag, the skill tree and the settings.
+- Nothing relies on colour alone: rarity is always written, bars carry icons and numbers.
+- Settings cover interface and text size, a legible font (Atkinson Hyperlegible), high contrast, colour-vision palettes and a choice of warning colour, reduced motion, screen shake, hit-stop, flashes, steady pencil lines, smooth figures, captions with direction, off-screen threat arrows, mono sound, game speed, longer warnings, auto-attack, aim assist and full rebinding.
 
-The only image files are the page's own, in `static/`: the favicon and app icons (drawn as SVG) and the share picture, which is a screenshot of the game.
+The game itself is a moving picture played with a mouse, keys, a pad or thumbs; it has not been tested with a screen reader beyond the roles above.
 
-## Known limits and natural next steps
+## Known limits
 
-- Single player. Player input already flows through `player.intent` and events, which is the seam where a network layer would attach.
-- Movement steers and slides around obstacles; there is no long-range pathfinding yet.
-- While the view turns, strokes on tall things (a tree's crown, a roof) drift a little against them, because each prop is hatched on one flat sheet; the ground does not drift at all.
-- The world is drawn out to about 108 units (`WORLD.VIEW`). Raising `WORLD.TEX` to 512 doubles the loaded area, but far rays then run out of march steps and the wide view costs about twice the GPU time; a coarser second ring of terrain is the proper way to see farther.
-- Positions are single-precision floats in shaders, so detail noise will coarsen tens of kilometres from the start; a floating render origin would lift that.
-- Phones and tablets start on lighter settings (fewer march steps, lower internal resolution). The touch interface is tested in desktop Chrome at phone sizes with scripted touches, not yet on real phones.
+- Single player. Input flows through `player.intent` and events, the seam where a network layer would attach.
+- Movement steers and slides around obstacles; there is no long-range pathfinding.
+- The world is drawn out to about 108 units (`WORLD.VIEW`); a coarser second ring of terrain is the way to see farther.
+- Positions are single-precision floats in shaders, so detail coarsens tens of kilometres from the start; a floating render origin would lift that.
+- The touch interface is tested in desktop Chrome at phone sizes, not yet on real phones.
 
 ## License
 
-MIT — see [LICENSE](LICENSE). The lettering uses Alegreya and Patrick Hand from Google Fonts (SIL Open Font License), loaded from Google's servers.
+MIT — see [LICENSE](LICENSE). The lettering uses Alegreya, Patrick Hand and Atkinson Hyperlegible (SIL Open Font License), bundled with the game through `@fontsource`.

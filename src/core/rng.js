@@ -1,20 +1,14 @@
-// Deterministic hashing and noise. Everything the world generator decides comes
-// from these, so the same seed always paints the same world.
-
-/** Integer lattice hash -> unsigned 32-bit. */
 export function hashInt(x, y, seed) {
   let h = (Math.imul(x | 0, 0x27d4eb2d) ^ Math.imul(y | 0, 0x165667b1) ^ Math.imul(seed | 0, 0x9e3779b1)) | 0;
   h = Math.imul(h ^ (h >>> 15), 0x85ebca6b);
   h = Math.imul(h ^ (h >>> 13), 0xc2b2ae35);
   return (h ^ (h >>> 16)) >>> 0;
 }
-/** Integer lattice hash -> [0, 1). */
 export const hash01 = (x, y, seed) => hashInt(x, y, seed) / 4294967296;
 
 const GX = [1, -1, 1, -1, 1.4142, -1.4142, 0, 0];
 const GY = [1, 1, -1, -1, 0, 0, 1.4142, -1.4142];
 
-/** 2D gradient noise, roughly [-1, 1]. */
 export function noise2(x, y, seed = 0) {
   const xi = Math.floor(x), yi = Math.floor(y);
   const xf = x - xi, yf = y - yi;
@@ -30,7 +24,6 @@ export function noise2(x, y, seed = 0) {
   return a + (b - a) * v;
 }
 
-/** Fractal noise, roughly [-1, 1]. */
 export function fbm2(x, y, octaves, seed = 0, lacunarity = 2.03, gain = 0.5) {
   let amp = 1, sum = 0, norm = 0;
   for (let i = 0; i < octaves; i++) {
@@ -41,7 +34,6 @@ export function fbm2(x, y, octaves, seed = 0, lacunarity = 2.03, gain = 0.5) {
   return sum / norm;
 }
 
-/** Ridged fractal noise in [0, 1]: sharp crests, good for mountain spines. */
 export function ridged2(x, y, octaves, seed = 0) {
   let amp = 1, sum = 0, norm = 0, prev = 1;
   for (let i = 0; i < octaves; i++) {
@@ -55,7 +47,6 @@ export function ridged2(x, y, octaves, seed = 0) {
   return sum / norm;
 }
 
-/** Small seeded PRNG for non-spatial rolls (loot, damage variance). */
 export function mulberry32(seed) {
   let a = seed >>> 0;
   return () => {

@@ -1,14 +1,7 @@
-// The wild creatures of Brushwild. Each is an original design built from a
-// handful of distance primitives; see passes/entities.js for the contract.
-// Pencils come from game data: A body, B and C details. By the land's own
-// rule each beast has one mustard part: the part that hurts.
-
 import { registerArchetype } from '../passes/entities.js';
+import { glsl } from '../shaderlib.js';
 
-// Dot eyes shared by the round creatures: black ballpoint with a glint of bare
-// paper up and to the left; the pair are never quite twins. f = position
-// relative to the face centre.
-const EYES = /* glsl */ `
+const EYES = glsl`
 void paintEyes(inout Surf s, vec3 f, float spread, vec2 size, float seed) {
   float blink = step(0.96, fract(uTime * 0.21 + seed));
   float side = f.x < 0.0 ? -1.0 : 1.0;
@@ -20,11 +13,9 @@ void paintEyes(inout Surf s, vec3 f, float spread, vec2 size, float seed) {
 }
 `;
 
-// ------------------------------------------------------------ Sproutling
-// A seed with feet and two leaves. Hops.
 registerArchetype({
   id: 'sproutling', boundY: 0.42, boundR: 0.82, steps: 44,
-  glsl: EYES + /* glsl */ `
+  glsl: EYES + glsl`
 float sHop, sSq, sLunge, sAir;
 void entPose() {
   float mv = ePose.w, at = ePose.z;
@@ -57,15 +48,15 @@ float entMap(vec3 p, out float mat) {
 }
 void entSurf(vec3 p, float mat, inout Surf s) {
   p.z -= sLunge; p.y -= sHop;
-  if (mat > 1.5) { s.albedo = eColC; s.cover = 0.88; return; }                 // the feet: the part that hurts
+  if (mat > 1.5) { s.albedo = eColC; s.cover = 0.88; return; }
   if (mat > 0.5) {
     s.albedo = eColB; s.cover = 0.84; s.wrap = 0.4;
-    s.ink = penLine(p.z) * 0.7;                                                  // a leaf's midrib
+    s.ink = penLine(p.z) * 0.7;
     return;
   }
   vec3 f = p - vec3(0.0, 0.33 * sSq + 0.03, 0.0);
   float belly = smoothstep(0.02, -0.16, f.y) * step(0.0, f.z);
-  s.albedo = eColA; s.cover = mix(0.82, 0.12, belly); s.wrap = 0.35;            // a pale underside: paper
+  s.albedo = eColA; s.cover = mix(0.82, 0.12, belly); s.wrap = 0.35;
   if (f.z > 0.0) {
     paintEyes(s, f - vec3(0.0, 0.05, 0.0), 0.115, vec2(0.042, 0.06), eLook.x);
     if (s.solid < 0.5) {
@@ -78,11 +69,9 @@ void entSurf(vec3 p, float mat, inout Surf s) {
 `,
 });
 
-// ------------------------------------------------------------ Puffcap
-// A walking mushroom that waddles and head-butts.
 registerArchetype({
   id: 'puffcap', boundY: 0.48, boundR: 0.85, steps: 44,
-  glsl: EYES + /* glsl */ `
+  glsl: EYES + glsl`
 float pTilt, pLean, pBob;
 vec3 puffLocal(vec3 p) {
   p.y -= pBob;
@@ -125,12 +114,12 @@ void entSurf(vec3 p, float mat, inout Surf s) {
     float rim = step(c.y, 0.07) * step(0.36, length(c.xz)) * (1.0 - under);
     vec2 v = voronoi(c.xz * 4.2 + eLook.x * 20.0);
     float spot = smoothstep(0.24, 0.18, v.x) * (1.0 - under) * (1.0 - rim);
-    s.albedo = mix(eColA, eColB, rim);                                           // the rim it butts with
-    s.cover = mix(0.86, 0.0, spot);                                              // spots are paper
+    s.albedo = mix(eColA, eColB, rim);
+    s.cover = mix(0.86, 0.0, spot);
     s.ink = penLine((v.x - 0.21) / 4.2) * (1.0 - under) * (1.0 - rim) * 0.6;
     if (under > 0.5) {
       s.albedo = P_TAN; s.cover = 0.4;
-      s.ink = smoothstep(0.2, 0.0, abs(fract(atan(c.z, c.x) * 3.5) - 0.5)) * 0.5;   // gills
+      s.ink = smoothstep(0.2, 0.0, abs(fract(atan(c.z, c.x) * 3.5) - 0.5)) * 0.5;
     }
     return;
   }
@@ -148,15 +137,12 @@ void entSurf(vec3 p, float mat, inout Surf s) {
 `,
 });
 
-// ------------------------------------------------------------ Bristlehog
-// A stout tusked forager with a ridge of bristles. Trots, then charges.
 registerArchetype({
   id: 'bristlehog', boundY: 0.4, boundR: 0.95, steps: 48,
-  glsl: /* glsl */ `
+  glsl: glsl`
 float bBob, bCharge, bNod;
 void entPose() {
   float mv = ePose.w;
-  // a trot: the body rises as each diagonal pair of legs passes under it, and the head nods with it
   bBob = abs(cos(ePose.x)) * 0.06 * mv + 0.01 * sin(uTime * 2.2 + eLook.x * 6.0);
   bCharge = 0.0; bNod = 0.06 * sin(uTime * 1.3 + eLook.x * 9.0) * (1.0 - mv) + 0.09 * sin(ePose.x * 2.0) * mv;
   if (ePose.y > 0.5 && ePose.y < 1.5) { float k = sin(saturate(ePose.z) * PI); bCharge = k * 0.3; bNod = -k * 0.25; }
@@ -164,12 +150,10 @@ void entPose() {
 }
 float entMap(vec3 p, out float mat) {
   float s = sin(ePose.x) * ePose.w;
-  // legs stay planted; diagonal pairs move together
   vec3 lp = p; lp.z -= bCharge * 0.4;
   float sx = sign(lp.x), sz = sign(lp.z);
   float ph = s * sx * sz;
   vec3 hipJ = vec3(0.15 * sx, 0.26 + bBob, 0.2 * sz);
-  // each foot swings forward lifted and comes back planted; the stride (monsters.js) matches the ground it covers
   float lifted = max(cos(ePose.x) * sx * sz, 0.0) * ePose.w;
   vec3 foot = vec3(0.16 * sx, 0.05 + lifted * 0.13, 0.21 * sz + ph * 0.2);
   float legs = sdTaper(lp, hipJ, foot, 0.07, 0.055);
@@ -187,7 +171,6 @@ float entMap(vec3 p, out float mat) {
   if (legs < d) { d = legs; mat = 0.0; }
   float tusk = sdTaper(vec3(abs(h.x), h.y, h.z), vec3(0.09, -0.1, 0.22), vec3(0.14, 0.0, 0.3), 0.03, 0.01);
   if (tusk < d) { d = tusk; mat = 2.0; }
-  // bristles: a row of spikes down the spine
   vec3 q = p - vec3(0.0, 0.57, -0.03);
   if (abs(q.z) < 0.34) {
     float qz = mod(q.z + 0.055, 0.11) - 0.055;
@@ -202,13 +185,13 @@ float entMap(vec3 p, out float mat) {
   return d * 0.9;
 }
 void entSurf(vec3 p, float mat, inout Surf s) {
-  if (mat > 0.5) { s.albedo = eColB; s.cover = 0.9; return; }                   // tusks and bristles: the part that hurts
+  if (mat > 0.5) { s.albedo = eColB; s.cover = 0.9; return; }
   p.z -= bCharge; p.y -= bBob;
   float belly = smoothstep(0.34, 0.2, p.y);
   float stripe = smoothstep(0.1, 0.04, abs(p.x)) * smoothstep(0.4, 0.5, p.y);
   s.albedo = eColA;
-  s.cover = mix(mix(0.82, 0.98, stripe), 0.12, belly);                          // charcoal hide, pale underside
-  s.ink = step(0.72, vnoise(p.xz * 26.0 + p.y * 17.0)) * (1.0 - belly) * 0.5;   // a few hairs
+  s.cover = mix(mix(0.82, 0.98, stripe), 0.12, belly);
+  s.ink = step(0.72, vnoise(p.xz * 26.0 + p.y * 17.0)) * (1.0 - belly) * 0.5;
   s.wrap = 0.25;
   vec3 h = p - vec3(0.0, 0.36, 0.34);
   h.zy = rot2(bNod) * h.zy;
@@ -220,17 +203,15 @@ void entSurf(vec3 p, float mat, inout Surf s) {
     float eye = smoothstep(0.034, 0.026, length(e));
     float glint = smoothstep(0.014, 0.008, length(vec2(h.x - sign(h.x) * 0.105 + 0.01, e.y - 0.012)));
     if (max(eye, nostril) > 0.5) { s.albedo = INK_BLACK; s.cover = 1.0 - glint * eye; s.solid = 1.0; s.ink = 0.0; }
-    else s.ink = max(s.ink, penLine(e.y - 0.045 + e.x * 0.5) * step(abs(e.x), 0.055));   // a heavy brow
+    else s.ink = max(s.ink, penLine(e.y - 0.045 + e.x * 0.5) * step(abs(e.x), 0.055));
   }
 }
 `,
 });
 
-// ------------------------------------------------------------ Wisp
-// A drifting lantern-spirit: bright core, trailing tail, two fins.
 registerArchetype({
   id: 'wisp', boundY: 0.85, boundR: 0.75, steps: 40,
-  glsl: EYES + /* glsl */ `
+  glsl: EYES + glsl`
 vec3 wCore; float wFlap, wPuff;
 void entPose() {
   float t = uTime * 2.0 + eLook.x * 6.28;
@@ -262,9 +243,8 @@ float entMap(vec3 p, out float mat) {
 }
 void entSurf(vec3 p, float mat, inout Surf s) {
   vec3 c = p - wCore;
-  if (mat > 1.5) { s.albedo = eColC; s.cover = 0.9; return; }                   // the halo: the part that stings
+  if (mat > 1.5) { s.albedo = eColC; s.cover = 0.9; return; }
   if (mat > 0.5) { s.albedo = eColB; s.cover = 0.72; s.wrap = 0.6; s.ink = penLine(c.z) * 0.5; return; }
-  // its light is the paper: the pencil only gathers toward the tail
   float fall = smoothstep(-0.6, 0.15, c.y);
   s.albedo = mix(eColB, eColA, fall);
   s.cover = mix(0.7, 0.06, fall);
@@ -275,11 +255,9 @@ void entSurf(vec3 p, float mat, inout Surf s) {
 `,
 });
 
-// ------------------------------------------------------------ Cragling
-// A small golem of stacked stones with glowing seams. Slams both fists.
 registerArchetype({
   id: 'cragling', boundY: 0.65, boundR: 1.05, steps: 52,
-  glsl: /* glsl */ `
+  glsl: glsl`
 const vec3 CRAG_N[5] = vec3[5](vec3(0.83, 0.52, 0.21), vec3(-0.61, 0.61, 0.51), vec3(0.1, 0.7, -0.71),
                               vec3(-0.5, 0.31, -0.81), vec3(0.3, -0.9, 0.31));
 float lump(vec3 c, float r, float seed) {
@@ -318,11 +296,9 @@ void entSurf(vec3 p, float mat, inout Surf s) {
   vec2 pv = pavers(p.xy * 3.4 + p.z * 2.3 + eLook.x * 20.0);
   s.albedo = eColA;
   s.cover = mix(0.5, 0.82, pv.y);
-  s.ink = penLine(0.5 * pv.x / 3.4) * 0.8;                                      // the seams between its stones
-  // its fists: the part that hurts
+  s.ink = penLine(0.5 * pv.x / 3.4) * 0.8;
   float fist = step(min(length(p - cFistL), length(p - cFistR)), 0.3);
   if (fist > 0.5) { s.albedo = eColB; s.cover = mix(0.7, 0.92, pv.y); }
-  // moss on the shoulders
   float moss = smoothstep(0.75, 0.85, p.y - cBob) * step(p.y - cBob, 0.92) * step(0.45, vnoise(p.xz * 9.0));
   if (moss > 0.5 && fist < 0.5) { s.albedo = P_SAGE; s.cover = 0.8; s.ink *= 0.4; }
   vec3 f = p - vec3(0.0, 1.03 + cBob, 0.06);
@@ -337,11 +313,9 @@ void entSurf(vec3 p, float mat, inout Surf s) {
 `,
 });
 
-// ------------------------------------------------------------ Shellsnap
-// A shore crab with a painted shell. Scuttles and snaps.
 registerArchetype({
   id: 'shellsnap', boundY: 0.25, boundR: 0.85, steps: 48,
-  glsl: /* glsl */ `
+  glsl: glsl`
 float cSway, cSnap, cBob;
 void entPose() {
   cSway = sin(ePose.x * 2.0) * 0.03 * ePose.w;
@@ -358,7 +332,6 @@ float entMap(vec3 p, out float mat) {
   float under = sdEllipsoid(q - vec3(0.0, 0.2, 0.0), vec3(0.33, 0.1, 0.25));
   float d = min(shell, under);
   mat = shell < under ? 0.0 : 2.0;
-  // three legs a side, mirrored; alternate legs step
   vec3 a = vec3(abs(q.x), q.y, q.z);
   float sgn = sign(q.x);
   float legs = 1e3;
@@ -370,7 +343,6 @@ float entMap(vec3 p, out float mat) {
     legs = min(legs, min(sdCapsule(a, vec3(0.28, 0.2, z), knee, 0.035), sdTaper(a, knee, tip, 0.032, 0.015)));
   }
   if (legs < d) { d = legs; mat = 2.0; }
-  // claws reach forward when snapping
   vec3 cl = vec3(0.38 - 0.1 * cSnap, 0.24 + 0.14 * cSnap, 0.3 + 0.22 * cSnap);
   float arm = sdCapsule(a, vec3(0.26, 0.2, 0.18), cl, 0.045);
   vec3 cq = a - cl;
@@ -387,14 +359,13 @@ float entMap(vec3 p, out float mat) {
 void entSurf(vec3 p, float mat, inout Surf s) {
   vec3 q = p - vec3(cSway, cBob, 0.0);
   if (mat > 2.5) {
-    s.albedo = P_CREAM; s.cover = 0.06;                                          // eyeballs: paper
+    s.albedo = P_CREAM; s.cover = 0.06;
     vec3 e = vec3(abs(q.x), q.y, q.z) - vec3(0.1, 0.48, 0.26);
     if (length(e.xy - vec2(0.0, 0.005)) < 0.03 && e.z > 0.0) { s.albedo = INK_BLACK; s.cover = 1.0; s.solid = 1.0; }
     return;
   }
   if (mat > 1.5) { s.albedo = eColC; s.cover = mix(0.7, 0.15, step(q.y, 0.2) * step(length(q.xz), 0.3)); return; }
-  if (mat > 0.5) { s.albedo = eColB; s.cover = 0.88; return; }                  // claws: the part that hurts
-  // shell: drawn rings and pale freckles
+  if (mat > 0.5) { s.albedo = eColB; s.cover = 0.88; return; }
   float r = length(q.xz / vec2(0.37, 0.29));
   vec2 v = voronoi(q.xz * 9.0 + eLook.x * 20.0);
   float freckle = smoothstep(0.16, 0.1, v.x) * step(0.5, v.y);
@@ -405,11 +376,9 @@ void entSurf(vec3 p, float mat, inout Surf s) {
 `,
 });
 
-// ------------------------------------------------------------ Loot
-// What monsters leave behind. eExtra: 0 coins, 1 pouch, 2 tonic, 3 charm.
 registerArchetype({
   id: 'drop', boundY: 0.32, boundR: 0.42, steps: 36,
-  glsl: /* glsl */ `
+  glsl: glsl`
 float dBob; mat2 dSpin;
 void entPose() {
   dBob = 0.2 + 0.05 * sin(uTime * 2.6 + eLook.x * 6.28) + ePose.w;
@@ -440,22 +409,62 @@ float entMap(vec3 p, out float mat) {
     if (cork < d) { d = cork; mat = 1.0; }
     return d;
   }
+  if (eExtra > 3.5) {
+    if (eExtra < 4.5) {
+      float blade = sdBox(q - vec3(0.0, 0.08, 0.0), vec3(0.034, 0.19, 0.011)) - 0.006;
+      blade = max(blade, q.y - 0.27 + abs(q.x) * 1.4);
+      float guard = sdBox(q - vec3(0.0, -0.12, 0.0), vec3(0.1, 0.018, 0.025));
+      float grip = sdCapsule(q, vec3(0.0, -0.14, 0.0), vec3(0.0, -0.24, 0.0), 0.022);
+      float pommel = length(q - vec3(0.0, -0.26, 0.0)) - 0.032;
+      float hilt = min(min(guard, grip), pommel);
+      if (hilt < blade) mat = 1.0;
+      return min(blade, hilt);
+    }
+    if (eExtra < 5.5) {
+      float shaft = sdCapsule(q, vec3(-0.06, -0.26, 0.0), vec3(0.05, 0.22, 0.0), 0.024);
+      float head = length(q - vec3(0.06, 0.26, 0.0)) - 0.06;
+      if (head < shaft) mat = 1.0;
+      return min(shaft, head);
+    }
+    if (eExtra < 6.5) {
+      float body = sdRoundBox(q - vec3(0.0, -0.01, 0.0), vec3(0.11, 0.15, 0.04), 0.03);
+      float arms = min(sdCapsule(q, vec3(-0.1, 0.1, 0.0), vec3(-0.19, -0.03, 0.0), 0.04), sdCapsule(q, vec3(0.1, 0.1, 0.0), vec3(0.19, -0.03, 0.0), 0.04));
+      float collar = sdTorusY(q - vec3(0.0, 0.14, 0.0), 0.05, 0.018);
+      if (collar < min(body, arms)) mat = 1.0;
+      return min(min(body, arms), collar);
+    }
+    if (eExtra < 7.5) {
+      float band = length(vec2(length(q.xy) - 0.1, q.z)) - 0.022;
+      float stone = length(q - vec3(0.0, 0.12, 0.0)) - 0.045;
+      if (stone < band) mat = 1.0;
+      return min(band, stone);
+    }
+    float disc = max(length(q.xy) - 0.17, abs(q.z) - 0.025) - 0.01;
+    float boss = length(q - vec3(0.0, 0.0, 0.03)) - 0.045;
+    if (boss < disc) mat = 1.0;
+    return min(disc, boss);
+  }
   float hx = max(abs(q.x) * 0.866 + abs(q.z) * 0.5, abs(q.z));
   return max(hx - 0.12 + abs(q.y) * 0.7, abs(q.y) - 0.17) * 0.8;
 }
 void entSurf(vec3 p, float mat, inout Surf s) {
   vec3 q = p - vec3(0.0, dBob, 0.0);
   q.xz = dSpin * q.xz;
-  if (eExtra < 0.5) {                                                            // coins
+  if (eExtra < 0.5) {
     s.albedo = P_SUN; s.cover = 0.85;
     s.ink = penLine(length(q.xy) - 0.095) * 0.6;
-  } else if (eExtra < 1.5) {                                                     // a pouch
+  } else if (eExtra < 1.5) {
     s.albedo = mat > 0.5 ? P_BRICK : P_TAN; s.cover = mat > 0.5 ? 0.9 : 0.7;
-  } else if (eExtra < 2.5) {                                                     // a flask: paper glass, the draught below
+  } else if (eExtra < 2.5) {
     s.albedo = mat > 0.5 ? P_BARK : eColA;
     s.cover = mat > 0.5 ? 0.85 : mix(0.06, 0.88, step(q.y, 0.0));
     s.ink = mat > 0.5 ? 0.0 : penLine(q.y) * 0.7;
-  } else {                                                                       // a charm: a cut stone
+  } else if (eExtra > 3.5) {
+    s.albedo = mat > 0.5 ? P_BARK : eColA;
+    s.cover = mat > 0.5 ? 0.85 : 0.7;
+    if (eExtra < 4.5 && mat < 0.5) { s.albedo = mix(P_SLATE, eColA, 0.6); s.cover = 0.35; }
+    if (eExtra > 6.5 && eExtra < 7.5 && mat > 0.5) { s.albedo = eColA; s.cover = 0.9; s.glow = 0.3; }
+  } else {
     s.albedo = eColA; s.cover = mix(0.85, 0.15, step(0.0, q.x * 0.6 + q.y));
     s.glow = 0.25;
   }

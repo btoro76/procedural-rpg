@@ -1,9 +1,6 @@
-// Shader assembly. GLSL lives in small named chunks; a program is a short main
-// file that pulls chunks in with `#include <name>`. Content modules (props,
-// creatures, effects) register their own chunks, which is how new content
-// reaches the GPU without anyone editing a monolithic shader.
-
 import { WORLD, RENDER } from '../config.js';
+
+export const glsl = (strings, ...values) => strings.reduce((out, s, i) => out + s + (i < values.length ? values[i] : ''), '');
 
 const chunks = new Map();
 
@@ -33,7 +30,6 @@ function defines(extra = {}) {
   return Object.entries(all).map(([k, v]) => `#define ${k} ${v}`).join('\n') + '\n';
 }
 
-/** Resolves includes (each chunk at most once) and prepends version + defines. */
 export function assemble(source, extraDefines) {
   const seen = new Set();
   const expand = (src) => src.replace(/^[ \t]*#include <([\w./-]+)>[ \t]*$/gm, (_, name) => {

@@ -1,6 +1,6 @@
-import { registerChunk } from '../shaderlib.js';
+import { glsl, registerChunk } from '../shaderlib.js';
 
-registerChunk('common', /* glsl */ `
+registerChunk('common', glsl`
 #define PI 3.14159265
 #define TAU 6.2831853
 #define saturate(x) clamp(x, 0.0, 1.0)
@@ -46,7 +46,6 @@ float fbm(vec2 p) {
   for (int i = 0; i < 4; i++) { s += a * vnoise(p); p = p * 2.03 + 17.1; a *= 0.5; }
   return s / 0.9375;
 }
-// Cellular distance (to nearest feature point) and a per-cell random value.
 vec2 voronoi(vec2 p) {
   vec2 i = floor(p), f = fract(p);
   float best = 8.0, id = 0.0;
@@ -59,7 +58,6 @@ vec2 voronoi(vec2 p) {
   return vec2(best, id);
 }
 
-// Distance to the nearest cell border (x) and a per-cell random (y): paving stones, pebbles.
 vec2 pavers(vec2 p) {
   vec2 i = floor(p), f = fract(p);
   float f1 = 8.0, f2 = 8.0, id = 0.0;
@@ -73,7 +71,6 @@ vec2 pavers(vec2 p) {
 
 mat2 rot2(float a) { float c = cos(a), s = sin(a); return mat2(c, -s, s, c); }
 
-// ---- signed distance primitives
 float smin(float a, float b, float k) { float h = max(k - abs(a - b), 0.0) / k; return min(a, b) - h * h * k * 0.25; }
 float smax(float a, float b, float k) { return -smin(-a, -b, k); }
 float sdSphere(vec3 p, float r) { return length(p) - r; }
@@ -85,17 +82,15 @@ float sdCapsule(vec3 p, vec3 a, vec3 b, float r) {
   float h = saturate(dot(pa, ba) / dot(ba, ba));
   return length(pa - ba * h) - r;
 }
-// Capsule whose radius goes from ra at a to rb at b (cheap, slightly conservative).
 float sdTaper(vec3 p, vec3 a, vec3 b, float ra, float rb) {
   vec3 pa = p - a, ba = b - a;
   float h = saturate(dot(pa, ba) / dot(ba, ba));
   return length(pa - ba * h) - mix(ra, rb, h);
 }
-float sdCylinder(vec3 p, float r, float h) { // upright, y in [0, h]
+float sdCylinder(vec3 p, float r, float h) {
   vec2 d = vec2(length(p.xz) - r, abs(p.y - h * 0.5) - h * 0.5);
   return min(max(d.x, d.y), 0.0) + length(max(d, 0.0));
 }
-// Upright cone: base radius r at y = 0, tip at y = h.
 float sdConeUp(vec3 p, float r, float h) {
   vec2 w = vec2(length(p.xz), p.y);
   vec2 n = normalize(vec2(h, r));
@@ -118,8 +113,7 @@ vec3 octDecode(vec2 e) {
 float luma(vec3 c) { return dot(c, vec3(0.2126, 0.7152, 0.0722)); }
 `);
 
-// Shared by every full-screen pass.
-export const FULLSCREEN_VS = /* glsl */ `
+export const FULLSCREEN_VS = glsl`
 out vec2 vUv;
 void main() {
   vec2 p = vec2(float((gl_VertexID << 1) & 2), float(gl_VertexID & 2));

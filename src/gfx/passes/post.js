@@ -1,26 +1,16 @@
-// The drawing passes. The world pass only says what is where; here it is drawn:
-//
-//   ink pre-pass  finds the contours (depth steps, object silhouettes, folds)
-//   final pass    lays the pencil in strokes on the paper, shades with a deeper
-//                 pencil, doodles grass and waves, runs the pen along the
-//                 contours, and sets the figures (their own layer) on top.
-//
-// There is no bloom, tone mapping or blur: nothing on the page is lighter than
-// the paper, and distance is drawn by laying less.
-
 import { Program, drawFullscreen, bindScreen } from '../gl.js';
 import { FULLSCREEN_VS } from '../glsl/common.js';
 import '../glsl/lighting.js';
+import { glsl } from '../shaderlib.js';
 
-const INK_FS = /* glsl */ `
+const INK_FS = glsl`
 in vec2 vUv;
-out vec4 oEdge;      // contour 0..1, a number per object (varies the pen's pressure), fade with distance
+out vec4 oEdge;
 uniform sampler2D uGbuf;
 uniform vec2 uTexel;
 #include <common>
 #include <frame>
 
-// ground and water are one family, so shorelines are not inked
 float family(float id) { return id < 0.08 ? step(0.0, id) * 0.02 : id; }
 
 void main() {
@@ -35,7 +25,6 @@ void main() {
     mean += n[i].z * 0.25;
     far = max(far, n[i].z);
     float fn = family(n[i].w);
-    // a silhouette is drawn once, on the side that lies behind
     bool differ = abs(fn - fc) > 0.004;
     bool behind = n[i].z < gc.z * 0.985;
     bool level = abs(n[i].z - gc.z) <= gc.z * 0.015;
@@ -45,9 +34,8 @@ void main() {
   float crease = smoothstep(0.02, 0.06, abs(mean - gc.z) * 4.0 / max(gc.z, 1.0)) * step(mean, gc.z);
   fold = smoothstep(0.35, 0.8, fold) * step(0.08, gc.w);
   float line = max(max(crease, sil), fold * 0.85);
-  if (gc.z > 5000.0 && far > 5000.0) line = 0.0;      // open sky
+  if (gc.z > 5000.0 && far > 5000.0) line = 0.0;
 
-  // lines grow faint with distance and stop where the drawn world stops
   vec2 ndc = vUv * 2.0 - 1.0;
   vec3 rd = normalize(uCamFwd + uCamRight * (ndc.x * uTanFov.x) + uCamUp * (ndc.y * uTanFov.y));
   float t = min(gc.z, far);
@@ -57,21 +45,18 @@ void main() {
 }
 `;
 
-const FINAL_FS = /* glsl */ `
+const FINAL_FS = glsl`
 in vec2 vUv;
 out vec4 oColor;
 uniform sampler2D uLay, uGbuf, uMark, uSheet, uEdge, uEnt, uEntAux;
-uniform vec2 uRes;           // output size in device pixels
-uniform vec2 uInner;         // world-pass size in pixels
+uniform vec2 uRes;
+uniform vec2 uInner;
 uniform float uHurt, uFade;
 #include <common>
 #include <frame>
 #include <pencil>
 #include <minimap>
 
-// Depth of the sheet this pixel is hatched on (along the first paper direction in
-// x, the second in y), interpolated between world-pass pixels but never across a
-// silhouette.
 vec2 sheetAt(vec2 uv) {
   vec2 st = uv * uInner - 0.5;
   ivec2 i = ivec2(floor(st)), hi = ivec2(uInner) - 1;
@@ -85,7 +70,6 @@ vec2 sheetAt(vec2 uv) {
   return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
 }
 
-// Small pen tufts scattered over a lawn. Drawn on the page, so they stand upright.
 float grassTufts(vec2 uv, float amount, float pen) {
   if (amount < 0.05) return 0.0;
   vec2 g = uv / 0.85;
@@ -104,7 +88,6 @@ float grassTufts(vec2 uv, float amount, float pen) {
   return m;
 }
 
-// Short shallow pen strokes on water.
 float waveLines(vec2 uv, float amount, float pen) {
   if (amount < 0.05) return 0.0;
   vec2 g = vec2((uv.x + uTime * 0.12) / 1.7, uv.y / 0.55);
@@ -116,23 +99,17 @@ float waveLines(vec2 uv, float amount, float pen) {
   return (1.0 - smoothstep(pen * 0.5, pen, abs(q.y - y))) * step(abs(q.x), 0.28 + 0.3 * r.y);
 }
 
-// Everything laid with the side or the point of a pencil, and the doodles that
-// live on the page, for one paper direction (right, up, forward) and the depth
-// of this pixel's sheet along it.
 vec3 drawLays(vec3 page, vec3 rd, float sheet, vec3 right, vec3 up, vec3 fwd, bool sky, float dpr) {
   vec2 uv;
-  if (sky) {                                   // sky: hatched on the dome, turning with the world
+  if (sky) {
     uv = vec2(atan(rd.x, rd.z), asin(clamp(rd.y, -1.0, 1.0))) * 8.0;
     sheet = 8.0;
   } else {
-    // a point on a flat sheet at that depth: strokes stay straight on the page,
-    // and stay put on the world while the camera travels or turns
     uv = paperCoords(uCamPos + rd * (sheet / max(dot(rd, fwd), 0.2)), right, up);
   }
   vec2 lod = pencilLod(sheet);
-  float pen = uPencil.x * sheet * 1.5 * dpr;          // a pen stroke's width, in world units here
+  float pen = uPencil.x * sheet * 1.5 * dpr;
 
-  // every row of hatching stops a little short of the line, or runs a little over it
   float kind0 = texture(uMark, vUv).a;
   float row = floor((dot(uv, vec2(-sin(SLANT), cos(SLANT)))) / (PITCH0 * exp2(lod.x)) + 0.5);
   float ends = (hash11(row * exp2(lod.x) * 0.913 + 4.2) - 0.42) * mix(2.6, 6.5, saturate(kind0)) * dpr;
@@ -144,14 +121,11 @@ vec3 drawLays(vec3 page, vec3 rd, float sheet, vec3 right, vec3 up, vec3 fwd, bo
   vec3 col = page;
   float base = pencilLay(uv, lod, lay.a * uFade, soft, SLANT, 0.0);
   col = layOn(col, lay.rgb, base);
-  // shade: a second lay in a deeper pencil of the same hue, a few degrees off the first; lighter on pale things
   float chroma = max(lay.r, max(lay.g, lay.b)) - min(lay.r, min(lay.g, lay.b));
   float shadeCover = mark.r * mix(0.56, 0.82, smoothstep(0.12, 0.4, chroma)) * uFade;
-  // half ruled, half rubbed in: a shadow reads as hatching without turning into stripes
   float shade = mix(pencilLay(uv, lod, shadeCover, 0.0, SLANT - 0.105, 5.0), pencilLay(uv, lod, shadeCover, 1.0, SLANT - 0.105, 5.0), 0.5);
   col = shadeOn(col, shadowPencil(lay.rgb), shade);
 
-  // pen doodles that live on the page: grass, ripples
   vec3 inkLeaf = mix(INK_LEAF, INK_DARK, uNight * 0.6);
   col = inkOn(col, inkLeaf, grassTufts(uv, mark.b, pen) * 0.66 * uFade);
   col = inkOn(col, mix(INK_WET, INK_DARK, uNight * 0.5), waveLines(uv, saturate(mark.a - 1.0), pen) * 0.7 * uFade);
@@ -163,17 +137,13 @@ void main() {
   float dpr = uPencil.w;
   vec3 page = paperSheet(px);
 
-  // where this pixel is on the page-in-the-world
   vec2 ndc = vUv * 2.0 - 1.0;
   vec3 rd = normalize(uCamFwd + uCamRight * (ndc.x * uTanFov.x) + uCamUp * (ndc.y * uTanFov.y));
   vec2 sheet = sheetAt(vUv);
   bool sky = texture(uGbuf, vUv).z > 5000.0;
   vec3 col = drawLays(page, rd, sheet.x, uPaperRight, uPaperUp, uPaperFwd, sky, dpr);
-  // a fresh paper direction fades in over the held one: the same drawing, laid again
   if (uPaperMix > 0.004) col = mix(col, drawLays(page, rd, sheet.y, uPaperRightB, uPaperUpB, uPaperFwdB, sky, dpr), uPaperMix);
 
-  // the pen: marks on things, then the contours. The hand is not steady: lines
-  // wobble, press harder here and there, and are sometimes gone over twice.
   vec2 wob = (vec2(vnoise(px * 0.045 / dpr), vnoise(px * 0.045 / dpr + 9.0)) - 0.5) * 2.4 * dpr / uRes;
   vec2 h = 0.5 / uInner;
   vec4 ed = 0.25 * (texture(uEdge, vUv + wob + vec2(h.x, h.y)) + texture(uEdge, vUv + wob + vec2(-h.x, h.y)) +
@@ -187,7 +157,6 @@ void main() {
   col = inkOn(col, ink, marks * 0.6 * pressure * uFade);
   col = inkOn(col, ink, max(line, again) * pressure * ed.b * uFade);
 
-  // figures and effects, on their own layer
   vec4 e = texture(uEnt, vUv);
   if (e.a > 0.003) {
     vec4 aux = texture(uEntAux, vUv);
@@ -197,12 +166,10 @@ void main() {
     sd = max(sd, max(texture(uGbuf, vUv + vec2(0.0, gt.y)).z, texture(uGbuf, vUv - vec2(0.0, gt.y)).z));
     float hidden = step(sd + 0.05 + 0.006 * sd, aux.r);
     vec3 shown = mix(col * (1.0 - e.a) + e.rgb, mix(col, page, e.a), 1.0 - uFade);
-    // behind scenery the hero is not faded: only his outline is sketched over it
     vec3 ghost = inkOn(col, INK_SOFT, aux.b * aux.g * 0.8);
     col = mix(shown, ghost, hidden);
   }
 
-  // a blow taken: vermilion pencil scribbled in from the page's edges
   vec2 q = vUv - 0.5;
   float hurt = uHurt * smoothstep(0.56, 0.86, length(q));
   if (hurt > 0.01) col = layOn(col, P_VERMILION, pencilLay(px / uRes.y * 6.0, vec2(1.0, 0.3), hurt * 0.4, 0.0, SLANT, 9.0));
@@ -219,7 +186,7 @@ export class PostChain {
     this.final = new Program(gl, 'final', FULLSCREEN_VS, FINAL_FS);
   }
 
-  runInk(targets, frame, applyFrame) {
+  runInk(targets, applyFrame) {
     const gl = this.gl, p = this.ink.use();
     targets.edge.bind();
     applyFrame(p);
@@ -236,7 +203,7 @@ export class PostChain {
       .tex('uSheet', targets.scene.textures[3]).tex('uEdge', targets.edge.textures[0]).tex('uEnt', targets.ent.textures[0]).tex('uEntAux', targets.ent.textures[1]);
     p.set('uRes', [width, height]).set('uInner', [targets.scene.width, targets.scene.height])
       .set('uHurt', frame.look.hurt).set('uFade', frame.look.fade);
-    minimap.bind(p, frame, width, height);
+    minimap.bind(p, frame, height);
     drawFullscreen(gl);
   }
 }

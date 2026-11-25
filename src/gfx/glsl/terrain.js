@@ -1,14 +1,12 @@
-import { registerChunk } from '../shaderlib.js';
+import { glsl, registerChunk } from '../shaderlib.js';
 
-// World-data sampling, the scene raymarch and the shadow march.
-// Requires: common, frame, lighting, props.
-registerChunk('terrain', /* glsl */ `
-uniform sampler2D uHeightTex;  // h, canopy shade, flowers, wetness   (1 texel = 1 unit, wraps)
-uniform sampler2D uColorTex;   // ground tint rgb, path
-uniform sampler2D uMatTex;     // grass, sand, snow, rock
-uniform sampler2D uPropTexA;   // per cell: offset x, offset z, base y, type
-uniform sampler2D uPropTexB;   // per cell: rot, scale, seed, palette
-uniform float uMaxY;           // nothing in the loaded world is taller than this
+registerChunk('terrain', glsl`
+uniform sampler2D uHeightTex;
+uniform sampler2D uColorTex;
+uniform sampler2D uMatTex;
+uniform sampler2D uPropTexA;
+uniform sampler2D uPropTexB;
+uniform float uMaxY;
 
 const float INV_T = 1.0 / WORLD_TEX;
 vec4 hSample(vec2 xz) { return textureLod(uHeightTex, (xz + 0.5) * INV_T, 0.0); }
@@ -33,17 +31,16 @@ bool cellProp(ivec2 cell, out Prop pr) {
 mat2 propRot(Prop pr) { return rot2(pr.rot); }
 vec3 toProp(vec3 p, Prop pr, mat2 r) { vec3 q = p - pr.base; q.xz = r * q.xz; return q / pr.scale; }
 
-// Distance a ray may travel before it leaves its prop cell.
 float cellExit(vec2 xz, vec2 dir) {
   vec2 f = fract(xz / CELL);
   vec2 e = mix(f, 1.0 - f, step(0.0, dir)) * CELL / (abs(dir) + 1e-5);
   return min(e.x, e.y) + 0.02;
 }
 
-struct Hit { float t; int kind; float mat; Prop pr; ivec2 cell; };  // kind: 0 nothing, 1 ground, 2 prop
+struct Hit { float t; int kind; float mat; Prop pr; ivec2 cell; };
 
-bool gReveal = false;   // this pixel lies in the see-through window around the player
-float gRevealT = 0.0;   // ...and only foliage nearer than this is cut away
+bool gReveal = false;
+float gRevealT = 0.0;
 
 void marchScene(vec3 ro, vec3 rd, float tMin, float tMax, out Hit hit) {
   hit.kind = 0; hit.t = tMax; hit.mat = 0.0; hit.cell = ivec2(0);
@@ -78,7 +75,7 @@ void marchScene(vec3 ro, vec3 rd, float tMin, float tMax, out Hit hit) {
             hit.t = t; hit.kind = 2; hit.mat = m; hit.pr = pr; hit.cell = cell;
             return;
           }
-          dp = 0.3;   // inside the see-through window: walk on through the leaves
+          dp = 0.3;
         }
         d = min(d, dp);
       }
@@ -92,7 +89,6 @@ void marchScene(vec3 ro, vec3 rd, float tMin, float tMax, out Hit hit) {
   }
 }
 
-// 0 = fully shadowed, 1 = open sky toward the light.
 float shadowMarch(vec3 p, vec3 L) {
   float res = 1.0, t = 0.1;
   ivec2 last = ivec2(-99999);
@@ -103,7 +99,7 @@ float shadowMarch(vec3 p, vec3 L) {
     float above = q.y - hAt(q.xz);
     if (above < -0.03) return 0.0;
     float d = above * 0.6 + 0.06;
-    if (t > 1.5) res = min(res, 16.0 * above / t);   // steep factor: lawn undulations must not facet the light
+    if (t > 1.5) res = min(res, 16.0 * above / t);
     if (above < PROP_HMAX) {
       ivec2 cell = ivec2(floor(q.xz / CELL));
       if (cell != last) { last = cell; has = cellProp(cell, pr); if (has) pm = propRot(pr); }
@@ -129,12 +125,8 @@ float cloudShadow(vec2 xz) {
 }
 `);
 
-// How the ground is drawn. The CPU supplies the biome's pencil and how much of
-// each kind of ground is here; this picks the pencils, how firmly they are laid,
-// and the pen marks (joints, pebbles, cracks). Grass tufts and wave lines are
-// doodled later, on the page, by the final pass.
-registerChunk('ground', /* glsl */ `
-float gGrass = 0.0;   // how much lawn is at the last ground point (the final pass doodles tufts there)
+registerChunk('ground', glsl`
+float gGrass = 0.0;
 
 void groundSurf(vec3 p, float t, inout vec3 N, out Surf s, out float canopy) {
   s = newSurf();
@@ -147,7 +139,6 @@ void groundSurf(vec3 p, float t, inout vec3 N, out Surf s, out float canopy) {
   float lod = smoothstep(85.0, 24.0, t);
   vec3 col = ct.rgb;
 
-  // a lawn is two or three neighbouring pencils and an uneven hand, never one flat green
   float swatch = fbm(p.xz * 0.07);
   float swatch2 = fbm(p.xz * 0.023 + 40.0);
   col = mix(col, mix(col, P_BUTTER, 0.42), smoothstep(0.5, 0.78, swatch2) * grass * 0.75);
@@ -158,12 +149,11 @@ void groundSurf(vec3 p, float t, inout vec3 N, out Surf s, out float canopy) {
 
   float fl = hs.b * grass * lod;
   if (fl > 0.02) {
-    // wildflowers: dots of rose and sun, and daisies left as paper
     vec2 fv = voronoi(p.xz * 1.9 + 31.0);
     float bloom = smoothstep(0.14, 0.1, fv.x) * step(1.0 - fl * 0.3, fract(fv.y * 3.7));
     col = mix(col, fv.y < 0.66 ? P_ROSE : P_SUN, bloom);
     s.cover = mix(s.cover, fv.y < 0.33 ? 0.0 : 0.95, bloom);
-    s.ink = max(s.ink, smoothstep(0.04, 0.02, fv.x) * step(fv.y, 0.33) * bloom * 0.7);    // a daisy's eye
+    s.ink = max(s.ink, smoothstep(0.04, 0.02, fv.x) * step(fv.y, 0.33) * bloom * 0.7);
     gGrass *= 1.0 - bloom;
   }
   if (path > 0.03) {
@@ -172,11 +162,9 @@ void groundSurf(vec3 p, float t, inout vec3 N, out Surf s, out float canopy) {
     float pf = mix(2.4, 1.2, cob);
     vec2 pv = pavers(p.xz * pf);
     float joint = penLine(0.5 * pv.x / pf);
-    // a dirt road: paper with a little tan and a pebble drawn here and there
     vec3 dirt = mix(P_TAN, P_BARK, 0.25 * pv.y);
     float dirtCover = mix(0.16, 0.34, swatch);
     float dirtInk = joint * step(0.82, pv.y) * 0.55;
-    // dressed paving: peach and clay-rose stones, some left nearly bare, sepia joints
     float tone = fract(pv.y * 7.31);
     vec3 stone = tone < 0.4 ? P_PEACH : (tone < 0.75 ? P_CLAY : mix(P_STONE, P_CREAM, 0.5));
     float stoneCover = mix(0.36, 0.8, fract(pv.y * 3.17));
@@ -188,7 +176,7 @@ void groundSurf(vec3 p, float t, inout vec3 N, out Surf s, out float canopy) {
   if (sand > 0.04) {
     vec2 sv = voronoi(p.xz * 3.1);
     col = mix(col, mix(P_TAN, P_CREAM, 0.45), sand);
-    s.cover = mix(s.cover, 0.14 + 0.3 * hs.a + 0.1 * swatch, sand);   // mostly paper; firmer where it is wet
+    s.cover = mix(s.cover, 0.14 + 0.3 * hs.a + 0.1 * swatch, sand);
     s.ink = max(s.ink, smoothstep(0.07, 0.035, sv.x) * step(0.8, sv.y) * 0.5 * sand * lod);
   }
   if (rock > 0.04) {
@@ -199,7 +187,6 @@ void groundSurf(vec3 p, float t, inout vec3 N, out Surf s, out float canopy) {
     N = normalize(N + vec3(strata - 0.5, 0.0, 0.5 - strata) * 0.5 * rock);
   }
   if (snow > 0.04) {
-    // snow is the paper itself, with a breath of blue in the hollows
     float drift = vnoise(vec2(dot(p.xz, vec2(0.8, 0.6)) * 0.22, dot(p.xz, vec2(-0.6, 0.8)) * 1.3));
     col = mix(col, mix(P_SKY, P_SLATE, 0.2), snow);
     s.cover = mix(s.cover, 0.015 + 0.13 * smoothstep(0.5, 0.15, drift * 0.6 + swatch * 0.6), snow);

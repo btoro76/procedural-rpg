@@ -1,6 +1,3 @@
-// Thin WebGL2 layer: context, programs with reflected uniforms, render targets.
-// No scene graph and no state tracking beyond what the passes need.
-
 import { assemble } from './shaderlib.js';
 
 export function createContext(canvas) {
@@ -26,7 +23,6 @@ function compile(gl, type, source, label) {
   gl.compileShader(sh);
   if (!gl.getShaderParameter(sh, gl.COMPILE_STATUS)) {
     const log = gl.getShaderInfoLog(sh) || '';
-    // show the offending lines, since assembled shaders have no file to open
     const lines = source.split('\n');
     const around = [...log.matchAll(/ERROR: \d+:(\d+)/g)].slice(0, 4).map((m) => {
       const n = +m[1];
@@ -48,7 +44,6 @@ const SETTERS = {
 };
 
 export class Program {
-  /** vs/fs are chunked sources (see shaderlib); defines become #defines in both. */
   constructor(gl, name, vs, fs, defines) {
     this.gl = gl;
     this.name = name;
@@ -73,14 +68,9 @@ export class Program {
     this.unit = 0;
     return this;
   }
-  /** Sets any non-sampler uniform; silently ignores ones the compiler removed. */
   set(name, value) {
     const u = this.uniforms[name];
     if (u) SETTERS[u.type](this.gl, u.loc, value, u.size);
-    return this;
-  }
-  setAll(map) {
-    for (const k in map) this.set(k, map[k]);
     return this;
   }
   tex(name, texture) {
@@ -105,11 +95,6 @@ export function createTexture(gl, { width, height, internal, format, type, filte
   return tex;
 }
 
-/**
- * Render target with one or more float colour attachments and an optional depth buffer.
- * attachments: [{ filter, precise }]  — RGBA16F, or RGBA32F where `precise` is set and the GPU allows it
- * (ray distances need it: hatching is placed from them).
- */
 export class Target {
   constructor(gl, attachments, depth = false) {
     this.gl = gl;
@@ -147,7 +132,6 @@ export class Target {
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
     return true;
   }
-  /** Binds for drawing into the first `count` attachments. */
   bind(count = this.textures.length) {
     const gl = this.gl;
     gl.bindFramebuffer(gl.FRAMEBUFFER, this.fbo);
@@ -168,7 +152,6 @@ export function bindScreen(gl, width, height) {
   gl.viewport(0, 0, width, height);
 }
 
-/** One triangle that covers the screen; positions come from gl_VertexID. */
 export function drawFullscreen(gl) {
   gl.drawArrays(gl.TRIANGLES, 0, 3);
 }

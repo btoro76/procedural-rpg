@@ -1,20 +1,11 @@
-// World pass: one full-screen raymarch of terrain, props and water. It does not
-// produce a finished picture; it decides, for every pixel, WHAT is to be drawn
-// there and hands that to the final pass, which draws it with pencil and pen:
-//
-//   lay   the pencil (rgb) and how firmly it is laid
-//   gbuf  normal, ray distance, object id            (for contour lines and compositing)
-//   mark  shading 0..1, pen marks 0..1, grass 0..1, kind of lay (0 hatch, 1 broad pulls, 2 water)
-//   sheet the depth (along each of the two paper directions) of the flat sheet this pixel's hatching lies on: the ground's own
-//         depth, or one depth for a whole prop, so its strokes stay straight on the page
-
 import { Program, drawFullscreen } from '../gl.js';
 import { FULLSCREEN_VS } from '../glsl/common.js';
 import '../glsl/lighting.js';
 import '../glsl/terrain.js';
 import '../../world/props.js';
+import { glsl } from '../shaderlib.js';
 
-const WORLD_FS = /* glsl */ `
+const WORLD_FS = glsl`
 in vec2 vUv;
 layout(location = 0) out vec4 oLay;
 layout(location = 1) out vec4 oGbuf;
@@ -23,11 +14,11 @@ layout(location = 3) out vec4 oSheet;
 
 uniform vec3 uRockCol;
 uniform vec3 uLeafPal[12];
-uniform vec4 uCasters[MAX_CASTERS];    // entity bounding spheres that cast shadows
+uniform vec4 uCasters[MAX_CASTERS];
 uniform int uCasterCount;
-uniform vec4 uReveal;                  // player on screen (ndc xy), window radius, distance to player
-uniform float uPen;                    // the pen's width in world units, per unit of ray distance
-float gSnow = 0.0;                     // snow cover where the current prop stands
+uniform vec4 uReveal;
+uniform float uPen;
+float gSnow = 0.0;
 
 #include <common>
 #include <frame>
@@ -64,16 +55,13 @@ vec3 propNormal(vec3 q, Prop pr) {
                    e.yxy * propSdf(q + e.yxy, pr, m) + e.xxx * propSdf(q + e.xxx, pr, m));
 }
 
-// Applies light to a surface the way the hand does: light lifts the pencil
-// (a paler lay, down to bare paper), shade is handed on as a second lay.
 void lightSurf(inout Surf s, vec3 p, vec3 N, float shadow, float ao, out float shade) {
   shade = shadeAmount(s, N, shadow, ao * s.occ);
   float facing = smoothstep(0.55, 0.95, dot(N, uSunDir)) * (1.0 - shade);
-  s.cover *= 1.0 - 0.28 * facing;                 // the pale top
+  s.cover *= 1.0 - 0.28 * facing;
   float pool = lightPool(p, N);
-  s.cover *= (1.0 - 0.88 * max(pool, s.glow));    // light is paper
+  s.cover *= (1.0 - 0.88 * max(pool, s.glow));
   shade *= (1.0 - max(pool, s.glow));
-  // by night the same things are drawn with the indigo pencils, laid more firmly
   s.albedo = mix(s.albedo, nightPencil(s.albedo), uNight * (1.0 - pool));
   s.cover = mix(s.cover, min(1.0, s.cover * 1.22 + 0.08 * step(0.02, s.cover)), uNight * (1.0 - pool) * (1.0 - s.glow));
 }
@@ -83,7 +71,6 @@ void main() {
   vec3 ro = uCamPos;
   vec3 rd = normalize(uCamFwd + uCamRight * (ndc.x * uTanFov.x) + uCamUp * (ndc.y * uTanFov.y));
 
-  // The loaded world is a cylinder around the focus; find where the ray leaves it.
   vec2 oc = ro.xz - uFocus.xz;
   float qa = dot(rd.xz, rd.xz), qb = dot(oc, rd.xz), qc = dot(oc, oc) - VIEW_DIST * VIEW_DIST;
   float disc = qb * qb - qa * qc;
@@ -91,7 +78,6 @@ void main() {
   float tMin = 0.05;
   if (ro.y > uMaxY) tMin = rd.y < 0.0 ? (uMaxY - ro.y) / rd.y : tMax;
 
-  // a ragged round window in the foliage so the hero is never lost under a tree
   vec2 fromHero = (ndc - uReveal.xy) * vec2(uTanFov.x / uTanFov.y, 1.0);
   gReveal = length(fromHero) < uReveal.z * (0.86 + 0.28 * vnoise(vUv * 26.0));
   gRevealT = uReveal.w - 0.7;
@@ -105,7 +91,7 @@ void main() {
   Surf s = newSurf();
   vec3 N = vec3(0.0, 1.0, 0.0);
   float depth = hit.t, id = 0.0, shade = 0.0, grass = 0.0, kind = 0.0;
-  vec2 sheet = vec2(8.0);       // depth of this pixel's hatching sheet along the two paper directions
+  vec2 sheet = vec2(8.0);
 
   if (hit.kind == 0 && !wet) {
     float skyInk;
@@ -141,7 +127,6 @@ void main() {
       propMat(q, hit.mat, hit.pr, s);
       vec3 ng = n;
       if (s.leafy > 0.5) {
-        // leaf masses: tilt the normal clump by clump so the light breaks into dabs
         vec3 j = vec3(vnoise3(q * 2.6 + 1.7), vnoise3(q * 2.6 + 5.3), vnoise3(q * 2.6 + 9.1)) - 0.5;
         n = normalize(n + j * 1.1 + vec3(0.0, 0.22, 0.0));
       }
@@ -154,19 +139,17 @@ void main() {
       vec3 Ng = vec3(back * ng.xz, ng.y).xzy;
       gSun = cloudShadow(p.xz);
       float sh = shadowMarch(p + Ng * 0.08, uSunDir);
-      // creases between lobes and under eaves: probe the field a little way off the surface
       float open = saturate(propSdf(q + ng * 0.4, hit.pr, hit.mat) / 0.4);
       float ao = (0.6 + 0.4 * saturate(q.y * 0.5)) * mix(0.5, 1.0, open);
       lightSurf(s, p, N, sh, ao, shade);
       kind = s.soft;
-      id = 0.1 + 0.9 * hash12(floor(hit.pr.base.xz * 2.0 + 0.5));   // same id from every cell the prop spans
-      vec3 stand = hit.pr.base + vec3(0.0, 1.5 * hit.pr.scale, 0.0) - ro;     // a flat sheet standing in the prop
+      id = 0.1 + 0.9 * hash12(floor(hit.pr.base.xz * 2.0 + 0.5));
+      vec3 stand = hit.pr.base + vec3(0.0, 1.5 * hit.pr.scale, 0.0) - ro;
       sheet = max(vec2(dot(stand, uPaperFwd), dot(stand, uPaperFwdB)), 1.0);
     } else {
-      s.albedo = P_SLATE; s.cover = 0.7;       // open sea beyond the loaded land
+      s.albedo = P_SLATE; s.cover = 0.7;
     }
     if (wet) {
-      // water: a blue lay that deepens with the bed, bare paper for foam; its wave lines are doodled later
       vec3 wp = ro + rd * tw;
       float depthV = max(SEA - hAt(wp.xz), 0.0);
       float k = saturate(depthV / 3.0);
@@ -185,7 +168,6 @@ void main() {
       sheet = vec2(dot(rd, uPaperFwd), dot(rd, uPaperFwdB)) * tw;
       kind = 2.0 - foam;
     }
-    // distance: a paler, thinner lay; then the edge of the loaded world left as paper
     float thin = 1.0 - 0.42 * smoothstep(26.0, 100.0, depth);
     float edge = 1.0 - smoothstep(VIEW_DIST * 0.66, VIEW_DIST * 0.97, length(p.xz - uFocus.xz));
     s.cover *= thin * edge;
@@ -201,8 +183,6 @@ void main() {
 }
 `;
 
-// Quality tiers trade march steps for speed. The renderer drops to "low" only
-// when the lowest resolution still cannot hold the frame rate.
 export const QUALITY = {
   high: { MARCH_STEPS: 120, SHADOW_STEPS: 28 },
   low: { MARCH_STEPS: 84, SHADOW_STEPS: 12 },

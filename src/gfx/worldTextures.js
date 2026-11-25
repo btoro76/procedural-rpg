@@ -1,8 +1,3 @@
-// The world as the GPU sees it: five textures that wrap around (toroidal), kept
-// filled with the chunks nearest the player. A chunk always lands in the same
-// slot (chunk index modulo slots-per-side), so scrolling the world never moves
-// data — it only overwrites the slots that came into range.
-
 import { WORLD } from '../config.js';
 import { createTexture } from './gl.js';
 
@@ -26,10 +21,11 @@ export class WorldTextures {
     this.pending = [];
   }
 
-  /**
-   * Makes the window around (x, z) current, uploading at most `budget` chunks
-   * this call (nearest first). Returns how many are still missing.
-   */
+  setWorld(world) {
+    this.world = world;
+    this.slots.fill(null);
+  }
+
   update(x, z, budget = 2) {
     const pcx = Math.floor(x / N + 0.5), pcz = Math.floor(z / N + 0.5);
     const missing = this.pending;
@@ -53,7 +49,6 @@ export class WorldTextures {
     return missing.length - n;
   }
 
-  /** Draws one chunk again after its contents changed (a chest opened). */
   refresh(cx, cz) {
     const si = ((cz % S + S) % S) * S + ((cx % S + S) % S);
     const slot = this.slots[si];
@@ -75,7 +70,6 @@ export class WorldTextures {
     this.slots[si] = { cx: chunk.cx, cz: chunk.cz, maxH: chunk.maxH };
   }
 
-  /** Binds all five textures and the height bound on a program that includes <terrain>. */
   bind(program) {
     program.tex('uHeightTex', this.height).tex('uColorTex', this.color).tex('uMatTex', this.mat)
       .tex('uPropTexA', this.propsA).tex('uPropTexB', this.propsB).set('uMaxY', this.maxY);

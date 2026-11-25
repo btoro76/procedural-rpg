@@ -1,16 +1,13 @@
-// Orbit camera. Shaders build rays from the basis vectors; instanced geometry
-// uses the view-projection matrix; gameplay uses project() and ray().
-
 import { clamp, damp, dampAngle, m4, smoothstep, v3 } from '../core/math.js';
 import { RENDER } from '../config.js';
 
-const LOOK_AHEAD = 1.5;     // how far above the hero a low camera aims
+const LOOK_AHEAD = 1.5;
 
 export class Camera {
   constructor() {
     this.target = [0, 0, 0];
-    this.yaw = Math.PI * 0.25;   // around the target
-    this.pitch = 0.8;           // radians above the horizon
+    this.yaw = Math.PI * 0.25;
+    this.pitch = 0.8;
     this.distance = 15.5;
     this.goal = { yaw: this.yaw, pitch: this.pitch, distance: this.distance };
     this.fov = RENDER.FOV * Math.PI / 180;
@@ -20,6 +17,9 @@ export class Camera {
     this.tan = [1, 1];
     this.view = new Float32Array(16); this.proj = new Float32Array(16); this.viewProj = new Float32Array(16);
     this.shake = 0;
+    this.still = false;
+    this.shift = 0;
+    this.portrait = false;
   }
 
   rotate(dYaw, dPitch) {
@@ -30,7 +30,6 @@ export class Camera {
     this.goal.distance = clamp(this.goal.distance * factor, 7, 42);
   }
 
-  /** Eases toward the goal and rebuilds every derived quantity. minY keeps the eye above ground. */
   update(dt, target, aspect, groundAt) {
     this.aspect = aspect;
     this.yaw = dampAngle(this.yaw, this.goal.yaw, 12, dt);
@@ -39,11 +38,10 @@ export class Camera {
     for (let i = 0; i < 3; i++) this.target[i] = damp(this.target[i], target[i], 9, dt);
 
     const cp = Math.cos(this.pitch), sp = Math.sin(this.pitch);
-    const dir = [Math.sin(this.yaw) * cp, sp, Math.cos(this.yaw) * cp]; // from target to eye
+    const dir = [Math.sin(this.yaw) * cp, sp, Math.cos(this.yaw) * cp];
     let d = this.distance;
-    // Seen from low down and behind, the camera aims above the hero's head, so the hero
-    // stands in the lower third and the way ahead fills the picture; from above it aims at him.
-    const aim = [this.target[0], this.target[1] + LOOK_AHEAD * (1 - smoothstep(0.24, 0.62, this.pitch)), this.target[2]];
+    const ahead = this.portrait ? -0.25 : LOOK_AHEAD * (1 - smoothstep(0.24, 0.62, this.pitch));
+    const aim = [this.target[0] - this.right[0] * this.shift, this.target[1] + ahead, this.target[2] - this.right[2] * this.shift];
     this.pos = v3.add(aim, v3.scale(dir, d));
     if (groundAt) {
       const floor = groundAt(this.pos[0], this.pos[2]) + 1.2;
@@ -64,7 +62,6 @@ export class Camera {
     m4.mul(this.viewProj, this.proj, this.view);
   }
 
-  /** World ray through a point given in normalised device coordinates (-1..1, y up). */
   ray(nx, ny) {
     const r = this.right, u = this.up, f = this.fwd;
     return {
@@ -77,7 +74,6 @@ export class Camera {
     };
   }
 
-  /** World point -> { x, y } in 0..1 screen space (y down) and depth along the view; null behind the eye. */
   project(x, y, z) {
     const m = this.viewProj;
     const w = m[3] * x + m[7] * y + m[11] * z + m[15];

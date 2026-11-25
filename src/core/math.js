@@ -1,5 +1,3 @@
-// Small scalar helpers and a column-major 4x4 matrix kit (just what the camera needs).
-
 export const TAU = Math.PI * 2;
 export const clamp = (v, lo, hi) => (v < lo ? lo : v > hi ? hi : v);
 export const saturate = (v) => (v < 0 ? 0 : v > 1 ? 1 : v);
@@ -9,7 +7,6 @@ export const smoothstep = (a, b, x) => {
   return t * t * (3 - 2 * t);
 };
 export const damp = (a, b, rate, dt) => lerp(a, b, 1 - Math.exp(-rate * dt));
-export const dist2 = (ax, az, bx, bz) => Math.hypot(ax - bx, az - bz);
 
 export function angleDelta(from, to) {
   let d = (to - from) % TAU;
@@ -19,25 +16,18 @@ export function angleDelta(from, to) {
 }
 export const dampAngle = (a, b, rate, dt) => a + angleDelta(a, b) * (1 - Math.exp(-rate * dt));
 
-export const lerp3 = (a, b, t) => [lerp(a[0], b[0], t), lerp(a[1], b[1], t), lerp(a[2], b[2], t)];
-export const srgbToLinear = (c) => c.map((v) => Math.pow(v, 2.2));
-export const hex = (h) => [(h >> 16 & 255) / 255, (h >> 8 & 255) / 255, (h & 255) / 255];
-
-// ---- vec3 (plain arrays)
 export const v3 = {
   sub: (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]],
   add: (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]],
   scale: (a, s) => [a[0] * s, a[1] * s, a[2] * s],
   dot: (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2],
   cross: (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]],
-  len: (a) => Math.hypot(a[0], a[1], a[2]),
   norm: (a) => {
     const l = Math.hypot(a[0], a[1], a[2]) || 1;
     return [a[0] / l, a[1] / l, a[2] / l];
   },
 };
 
-// ---- mat4, column-major Float32Array(16)
 export const m4 = {
   perspective(out, fovY, aspect, near, far) {
     const f = 1 / Math.tan(fovY / 2), nf = 1 / (near - far);
@@ -45,7 +35,6 @@ export const m4 = {
     out[0] = f / aspect; out[5] = f; out[10] = (far + near) * nf; out[11] = -1; out[14] = 2 * far * near * nf;
     return out;
   },
-  /** View matrix from an orthonormal camera basis (right, up, forward) and position. */
   view(out, pos, r, u, f) {
     out[0] = r[0]; out[4] = r[1]; out[8] = r[2]; out[12] = -v3.dot(r, pos);
     out[1] = u[0]; out[5] = u[1]; out[9] = u[2]; out[13] = -v3.dot(u, pos);

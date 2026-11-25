@@ -1,21 +1,3 @@
-// Biome registry. A biome is plain data plus one scoring function; the world
-// generator blends the best-scoring biomes at every point, so adding a biome
-// never means touching the generator or a shader.
-//
-// Colours are pencils from the one box the whole game is drawn with (0..1, as
-// they sit on cream paper; see gfx/glsl/pencil.js). Muted and earthy: a place
-// is full because of how many pencils are in it, never because one is loud.
-// The rule borrowed from Valsera's colour script: the hand stays one, the place
-// never repeats. So each biome differs from its neighbours in its ground
-// pencil, what grows, its stone, and the beasts' coats.
-//
-//   score(c)   c = { elev, temp, moist, magic, wild, far }; highest score wins
-//   props      rows of [propId, chanceInOpenLand, chanceInForest, leafIndex?]; chance is per 4x4 cell.
-//              Without a leafIndex a tree takes one of the biome's `leaf` pencils: mostly the one
-//              its district favours, so a wood has a colour of its own and a few strays.
-//   monsters   rows of [monsterId, weight], read by the spawner
-//   variant    how this country's beasts differ: a name and the pencil of their hide
-
 import { smoothstep } from '../core/math.js';
 
 export const BIOMES = [];
@@ -31,23 +13,21 @@ export function registerBiome(def) {
 }
 export const biomeById = (id) => byId.get(id);
 
-/** Leaf pencils used by trees and bushes; a prop's palette index picks one. (The shader holds 12.) */
 export const LEAF_PALETTE = [
-  [0.455, 0.659, 0.353],  // 0 leaf
-  [0.910, 0.643, 0.188],  // 1 honey (autumn)
-  [0.910, 0.588, 0.588],  // 2 blush (blossom)
-  [0.330, 0.533, 0.463],  // 3 deep pine
-  [0.588, 0.698, 0.471],  // 4 sage
-  [0.878, 0.361, 0.275],  // 5 poppy (maple)
-  [0.957, 0.804, 0.376],  // 6 butter
-  [0.376, 0.620, 0.502],  // 7 sea green
-  [0.700, 0.790, 0.470],  // 8 birch light
-  [0.530, 0.650, 0.510],  // 9 willow grey-green
-  [0.800, 0.520, 0.560],  // 10 heather
-  [0.600, 0.730, 0.740],  // 11 frost
+  [0.455, 0.659, 0.353],
+  [0.910, 0.643, 0.188],
+  [0.910, 0.588, 0.588],
+  [0.330, 0.533, 0.463],
+  [0.588, 0.698, 0.471],
+  [0.878, 0.361, 0.275],
+  [0.957, 0.804, 0.376],
+  [0.376, 0.620, 0.502],
+  [0.700, 0.790, 0.470],
+  [0.530, 0.650, 0.510],
+  [0.800, 0.520, 0.560],
+  [0.600, 0.730, 0.740],
 ];
 
-// How strongly a biome wants a place. `band` peaks at 1 inside [lo, hi] and falls off outside.
 const band = (v, lo, hi, soft = 0.08) => smoothstep(lo - soft, lo + soft, v) * (1 - smoothstep(hi - soft, hi + soft, v));
 
 registerBiome({
@@ -114,8 +94,6 @@ registerBiome({
   variant: { prefix: 'Crag', pencil: [112, 118, 140] },
   particles: 'snow',
 });
-
-// ---- further afield: countries that only appear away from the starting town
 
 registerBiome({
   id: 'wheat', name: 'Strawmere',
@@ -192,4 +170,17 @@ registerBiome({
   monsters: [['cragling', 6], ['wisp', 3], ['bristlehog', 2]],
   variant: { prefix: 'Cinder', pencil: [122, 62, 44] },
   particles: 'leaves',
+});
+
+registerBiome({
+  id: 'crypt', name: 'Crypt', hidden: true,
+  score: () => -10,
+  ground: [0.70, 0.65, 0.58], ground2: [0.62, 0.59, 0.54], rock: [0.56, 0.53, 0.50],
+  grass: 0, sand: 0, flowers: 0, props: [], monsters: [['sproutling', 1]], particles: 'dust',
+});
+registerBiome({
+  id: 'cave', name: 'Cavern', hidden: true,
+  score: () => -10,
+  ground: [0.62, 0.54, 0.44], ground2: [0.55, 0.50, 0.43], rock: [0.50, 0.48, 0.46],
+  grass: 0, sand: 0.3, flowers: 0, props: [], monsters: [['sproutling', 1]], particles: 'dust',
 });

@@ -1,26 +1,17 @@
-// World generator: pure functions of (seed, position). No GL, no game state, so
-// it runs the same in a browser, a worker or a test script.
-//
-// The output of generateChunk() is exactly what the GPU world textures hold,
-// plus a prop list for collision and gameplay. The CPU therefore always agrees
-// with what the shader draws: one source of truth, generated once.
-
 import { WORLD } from '../config.js';
 import { noise2, fbm2, ridged2, hash01 } from '../core/rng.js';
 import { clamp, lerp, smoothstep } from '../core/math.js';
 import { BIOMES } from './biomes.js';
-import { propById } from './props.js';   // (also registers every prop's shader)
+import { propById } from './props.js';
 import { createSites } from './sites.js';
 import { createFinds } from './finds.js';
 
-const N = WORLD.CHUNK, CELL = WORLD.CELL, CPC = N / CELL; // cells per chunk edge
+const N = WORLD.CHUNK, CELL = WORLD.CELL, CPC = N / CELL;
 const L = WORLD.ROAD_L;
 
 export function createWorldGen(seed) {
   const S = seed | 0;
 
-  // ------------------------------------------------------------ height
-  /** Continental value: below 0 is sea. */
   function land(x, z) {
     const wx = x + 60 * noise2(x * 0.003, z * 0.003, S + 1);
     const wz = z + 60 * noise2(x * 0.003 + 31.7, z * 0.003 - 12.3, S + 2);
@@ -36,18 +27,14 @@ export function createWorldGen(seed) {
     const onLand = smoothstep(0, 0.12, e);
     const hillAmp = 1 + 2.6 * smoothstep(-0.2, 0.5, noise2(x * 0.0031 + 5.1, z * 0.0031 + 9.2, S + 4));
     h += fbm2(x * 0.011, z * 0.011, 4, S + 5) * hillAmp * onLand;
-    // mountains: a mask of where ranges live, then ridged crests inside it
     let mm = smoothstep(0.08, 0.5, fbm2(x * 0.0016 + 90.1, z * 0.0016 - 40.7, 3, S + 6) + 0.12);
     mm *= smoothstep(0.1, 0.4, e) * smoothstep(150, 330, r0);
     if (mm > 0) h += mm * mm * (ridged2(x * 0.0058, z * 0.0058, 4, S + 7) * 38 + 4);
-    // rivers: shallow, wadeable channels through the lowlands
     const rv = Math.abs(fbm2(x * 0.0027 + 200.3, z * 0.0027 + 77.7, 2, S + 8));
     const chan = (1 - smoothstep(0.008, 0.04, rv)) * (1 - smoothstep(5, 10, h)) * smoothstep(70, 150, r0);
     if (chan > 0) h = lerp(h, Math.min(h, -0.55), chan);
-    // lakes: here and there the land dips into a basin
     const basin = smoothstep(0.66, 0.82, 0.5 + 0.5 * fbm2(x * 0.006 + 70, z * 0.006 - 30, 2, S + 17)) * onLand * smoothstep(170, 300, r0) * (1 - mm);
     if (basin > 0) h = lerp(h, Math.min(h, -2.4), basin * 0.92);
-    // marsh: wet lowlands break up into shallow pools and hummocks
     const wet = smoothstep(0.68, 0.84, moisture(x, z)) * (1 - smoothstep(3, 7.5, h)) * onLand * smoothstep(130, 250, r0);
     if (wet > 0) h = lerp(h, 0.32 + 1.15 * fbm2(x * 0.05, z * 0.05, 2, S + 16), wet);
     return h;
@@ -55,7 +42,7 @@ export function createWorldGen(seed) {
 
   const sites = createSites(S, naturalHeight, (x, z, h) => BIOMES[biomeWeights(sampleClimate(x, z, h))].id);
   const finds = createFinds(S, (x, z) => height(x, z), sites);
-  const opened = new Set();       // keys of finds whose chest has been opened (the game fills this from the journey)
+  const opened = new Set();
 
   function height(x, z) {
     let h = naturalHeight(x, z);
@@ -67,22 +54,18 @@ export function createWorldGen(seed) {
     return h;
   }
 
-  // ------------------------------------------------------------ roads
   function roadDist(x, z) {
     const dx0 = x - Math.round(x / L) * L, dz0 = z - Math.round(z / L) * L;
-    const f = smoothstep(24, 96, Math.hypot(dx0, dz0)); // straight through the crossings
+    const f = smoothstep(24, 96, Math.hypot(dx0, dz0));
     const ax = x + 26 * f * noise2(x * 0.007, z * 0.007, S + 9);
     const az = z + 26 * f * noise2(x * 0.007 + 50, z * 0.007 + 50, S + 10);
     return Math.min(Math.abs(ax - Math.round(ax / L) * L), Math.abs(az - Math.round(az / L) * L));
   }
 
-  // ------------------------------------------------------------ climate
-  // Five slow fields decide what country a place is: how warm, how wet, how
-  // enchanted, how wild, and (far) how far it lies from the starting town.
   const climate = { elev: 0, temp: 0, moist: 0, magic: 0, wild: 0, far: 0 };
   function sampleClimate(x, z, elev) {
     const r0 = Math.hypot(x, z);
-    const home = 1 - smoothstep(110, 250, r0); // the starting country is plain meadow
+    const home = 1 - smoothstep(110, 250, r0);
     climate.elev = elev;
     climate.temp = lerp(clamp(0.5 + 1.05 * fbm2(x * 0.0013 + 300, z * 0.0013 + 300, 2, S + 11), 0, 1), 0.5, home);
     climate.moist = lerp(moisture(x, z), 0.5, home);
@@ -93,7 +76,6 @@ export function createWorldGen(seed) {
   }
 
   const weights = new Float32Array(16);
-  /** Fills `weights` with normalised biome weights; returns the dominant biome index. */
   function biomeWeights(c) {
     let best = 0, bestScore = -1e9, sum = 0;
     for (let i = 0; i < BIOMES.length; i++) {
@@ -111,20 +93,17 @@ export function createWorldGen(seed) {
 
   const forest = (x, z) => smoothstep(-0.12, 0.3, fbm2(x * 0.009, z * 0.009, 3, S + 14));
 
-  // ------------------------------------------------------------ props
-  /** The scatter prop that grows in a cell, or null. Depends only on the cell. */
   function cellProp(ccx, ccz) {
     const cxw = (ccx + 0.5) * CELL, czw = (ccz + 0.5) * CELL;
     const site = sites.near(cxw, czw);
     if (site && Math.hypot(cxw - site.x, czw - site.z) < site.clear) return null;
     const find = finds.near(cxw, czw);
-    if (find && Math.hypot(cxw - find.x, czw - find.z) < find.clear) return null;      // nothing grows on a find
+    if (find && Math.hypot(cxw - find.x, czw - find.z) < find.clear) return null;
     const h0 = height(cxw, czw);
     if (h0 < 0.3) return null;
     if (roadDist(cxw, czw) < 4.2) return null;
     const c = sampleClimate(cxw, czw, h0);
     biomeWeights(c);
-    // pick a biome by weight so vegetation mixes across borders
     let roll = hash01(ccx, ccz, S + 21), bi = 0;
     for (; bi < BIOMES.length - 1; bi++) { roll -= weights[bi]; if (roll <= 0) break; }
     const table = BIOMES[bi].props;
@@ -141,12 +120,10 @@ export function createWorldGen(seed) {
     const x = cxw + (hash01(ccx, ccz, S + 24) * 2 - 1) * room;
     const z = czw + (hash01(ccx, ccz, S + 25) * 2 - 1) * room;
     const y = height(x, z);
-    if (y < (def.id === 'reeds' ? 0.05 : 0.5)) return null;        // reeds stand at the water's edge
+    if (y < (def.id === 'reeds' ? 0.05 : 0.5)) return null;
     const slope = Math.hypot(height(x + 1, z) - y, height(x, z + 1) - y);
     if (slope > (def.id === 'rock' ? 1.1 : 0.62)) return null;
-    if (def.id !== 'rock' && def.id !== 'crystal' && def.id !== 'cairn' && y > 23 + 3 * hash01(ccx, ccz, S + 27)) return null; // treeline
-    // Its leaf pencil: the row's own, or one of the biome's. Most trees of a
-    // district share a colour (so each wood has a look) and a few stray.
+    if (def.id !== 'rock' && def.id !== 'crystal' && def.id !== 'cairn' && y > 23 + 3 * hash01(ccx, ccz, S + 27)) return null;
     let pal = row[3];
     if (pal === undefined) {
       const set = BIOMES[bi].leaf;
@@ -167,18 +144,16 @@ export function createWorldGen(seed) {
       return {
         def, type: def.type, x: s.x, y: height(s.x, s.z) - 0.04, z: s.z, scale: s.scale || 1,
         rot: s.rot || 0, seed: s.seed ?? hash01(i, site.i * 31 + site.j, S + 40), pal: s.pal || 0, site,
-        // an opened chest stands open (the game keeps the set of opened finds on the generator)
         ...(def.id === 'chest' && opened.has(site.key) ? { pal: 1 } : null),
       };
     });
     return site.built;
   }
 
-  // ------------------------------------------------------------ chunks
   function generateChunk(cx, cz) {
     const x0 = cx * N, z0 = cz * N;
     const M = N + 2;
-    const hgrid = new Float32Array(M * M); // heights with a one-texel skirt, for slopes
+    const hgrid = new Float32Array(M * M);
     let minH = 1e9, maxH = -1e9;
     for (let j = 0; j < M; j++) for (let i = 0; i < M; i++) {
       const h = height(x0 + i - 1, z0 + j - 1);
@@ -187,7 +162,6 @@ export function createWorldGen(seed) {
       if (h > maxH) maxH = h;
     }
 
-    // climate is smooth, so sample it on a coarse lattice and interpolate
     const Q = 4, QN = N / Q + 1;
     const clim = new Float32Array(QN * QN * 4);
     for (let j = 0; j < QN; j++) for (let i = 0; i < QN; i++) {
@@ -203,11 +177,11 @@ export function createWorldGen(seed) {
 
     const chunk = {
       cx, cz, minH, maxH,
-      height: new Float32Array(N * N * 4),   // h, canopy shade, flowers, wetness
-      color: new Uint8Array(N * N * 4),      // ground tint rgb, path
-      mat: new Uint8Array(N * N * 4),        // grass, sand, snow, rock
-      propsA: new Float32Array(CPC * CPC * 4), // offset x, offset z, base y, type
-      propsB: new Uint8Array(CPC * CPC * 4),   // rot, scale, seed, palette
+      height: new Float32Array(N * N * 4),
+      color: new Uint8Array(N * N * 4),
+      mat: new Uint8Array(N * N * 4),
+      propsA: new Float32Array(CPC * CPC * 4),
+      propsB: new Uint8Array(CPC * CPC * 4),
       biome: new Uint8Array(N * N),
       props: [],
     };
@@ -236,13 +210,11 @@ export function createWorldGen(seed) {
         grass += w * B.grass; sand += w * B.sand; flowers += w * B.flowers; cold += w * B.snow;
       }
 
-      // surface modifiers, in the order a painter would glaze them
       const beach = 1 - smoothstep(0.35, 1.3, h);
       if (beach > 0) { r = lerp(r, 0.886, beach); g = lerp(g, 0.76, beach); b = lerp(b, 0.55, beach); }
       sand = Math.max(sand, beach); grass *= 1 - beach;
       const rock = smoothstep(0.62, 1.0, slope) * smoothstep(0.2, 1.5, h);
       r = lerp(r, rr, rock); g = lerp(g, rg, rock); b = lerp(b, rb, rock);
-      // snow lies above the snowline, and everywhere in a frozen country (thinner where it drifts off)
       const drift = noise2(x * 0.05, z * 0.05, S + 31);
       const snow = Math.max(smoothstep(21, 26, h + 3 * drift), cold * smoothstep(-0.75, 0.1, drift + (h > 0.3 ? 0.4 : -1))) * (1 - rock * 0.75);
       r = lerp(r, 0.93, snow); g = lerp(g, 0.95, snow); b = lerp(b, 1.0, snow);
@@ -252,12 +224,12 @@ export function createWorldGen(seed) {
       if (site) {
         const d = Math.hypot(x - site.x, z - site.z);
         const yard = 1 - smoothstep(site.plaza - 1.2, site.plaza + 0.6, d + 1.2 * noise2(x * 0.3, z * 0.3, S + 32));
-        if (site.ground === 'dirt') path = Math.max(path, yard);      // a trodden yard
-        else paved = yard;                                            // dressed paving
+        if (site.ground === 'dirt') path = Math.max(path, yard);
+        else paved = yard;
       }
       if (path > 0) { r = lerp(r, 0.886, path * 0.9); g = lerp(g, 0.737, path * 0.9); b = lerp(b, 0.51, path * 0.9); }
       if (paved > 0) { r = lerp(r, 0.925, paved); g = lerp(g, 0.78, paved); b = lerp(b, 0.69, paved); }
-      path = Math.max(path * 0.5, paved); // 0.5 = dirt road, 1 = cobbles
+      path = Math.max(path * 0.5, paved);
       const bare = Math.max(rock, snow, Math.max(path * 2, paved));
       grass *= 1 - Math.min(1, bare);
 
@@ -268,7 +240,6 @@ export function createWorldGen(seed) {
       chunk.mat[o] = grass * 255; chunk.mat[o + 1] = sand * (1 - rock) * 255; chunk.mat[o + 2] = snow * 255; chunk.mat[o + 3] = rock * 255;
     }
 
-    // props: scatter (one ring of neighbours too, for their shade) then structures
     const gcx = cx * CPC, gcz = cz * CPC;
     const shade = (p) => {
       const R = p.def.reach * p.scale * 1.35, strength = Math.min(0.85, 0.3 + p.def.height * 0.12);
@@ -294,7 +265,7 @@ export function createWorldGen(seed) {
       return true;
     };
 
-    const made = [];      // every made place whose structures may reach this chunk: the site, and finds
+    const made = [];
     if (site && Math.hypot(site.x - (x0 + N / 2), site.z - (z0 + N / 2)) < site.clear + N) made.push(site);
     for (const f of finds.inRange(x0 + N / 2, z0 + N / 2, N)) made.push(f);
     for (const site of made) {
@@ -304,7 +275,6 @@ export function createWorldGen(seed) {
         shade(p);
         if (p.x >= x0 && p.x < x0 + N && p.z >= z0 && p.z < z0 + N) chunk.props.push(p);
         for (let cj = 0; cj < CPC; cj++) for (let ci = 0; ci < CPC; ci++) {
-          // does the prop's circle touch this cell's square?
           const nx = clamp(p.x, x0 + ci * CELL, x0 + (ci + 1) * CELL), nz = clamp(p.z, z0 + cj * CELL, z0 + (cj + 1) * CELL);
           if (Math.hypot(nx - p.x, nz - p.z) < R && !stamp(p, ci, cj)) {
             console.warn(`${site.name}: ${p.def.id} overlaps another structure in one cell`);

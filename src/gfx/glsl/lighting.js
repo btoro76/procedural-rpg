@@ -1,35 +1,28 @@
-import { registerChunk } from '../shaderlib.js';
+import { glsl, registerChunk } from '../shaderlib.js';
 import './pencil.js';
 
-// Uniforms every drawn pass shares. The renderer fills them once per frame from
-// the environment (hour, weather) and the camera.
-registerChunk('frame', /* glsl */ `
+registerChunk('frame', glsl`
 uniform vec3 uCamPos, uCamRight, uCamUp, uCamFwd;
 uniform vec2 uTanFov;
-uniform vec3 uFocus;        // what the camera looks at (the player)
+uniform vec3 uFocus;
 uniform float uTime;
-uniform vec3 uSunDir;       // toward the key light (sun by day, moon by night)
+uniform vec3 uSunDir;
 uniform vec3 uSunDisk, uMoonDisk;
-uniform float uNight;       // 0 day .. 1 night
-uniform float uGold;        // 0..1 dawn and dusk
-uniform float uCloud;       // cloud cover 0..1
+uniform float uNight;
+uniform float uGold;
+uniform float uCloud;
 uniform vec2 uWind;
 `);
 
-// The sky is the paper: a pale blue lay that thins to nothing at the horizon,
-// clouds left bare, two rows of far hills. Returns the pencil; `cover` is how
-// firmly it is laid and `ink` a soft ridge line.
-registerChunk('sky', /* glsl */ `
+registerChunk('sky', glsl`
 vec3 skyLay(vec3 rd, out float cover, out float ink) {
   float h = max(rd.y, 0.0);
   ink = 0.0;
   vec3 pig = P_SKY;
   cover = mix(0.1, 0.5, smoothstep(0.02, 0.5, h));
-  // dawn and dusk: a peach to rose blush low in the sky
   float low = exp(-h * 6.0);
   pig = mix(pig, mix(P_APRICOT, P_ROSE, 0.3), uGold * low * 0.9);
   cover = mix(cover, 0.4, uGold * low);
-  // night: indigo, laid firmly
   pig = mix(pig, mix(P_INDIGO, P_DUSK, 0.4), uNight);
   cover = mix(cover, mix(0.6, 0.86, smoothstep(0.0, 0.5, h)), uNight);
 
@@ -37,7 +30,7 @@ vec3 skyLay(vec3 rd, out float cover, out float ink) {
     vec2 uv = rd.xz / (rd.y + 0.16) * 1.1 + uWind * uTime * 0.012;
     float edge = 0.6 - uCloud * 0.28;
     float cloud = smoothstep(edge - 0.02, edge + 0.06, fbm(uv)) * smoothstep(0.01, 0.14, rd.y);
-    cover *= 1.0 - cloud * mix(0.96, 0.5, uNight);        // clouds are bare paper
+    cover *= 1.0 - cloud * mix(0.96, 0.5, uNight);
     if (uNight > 0.05) {
       vec2 sp = rd.xz / (rd.y + 0.35) * 42.0;
       vec2 cell = floor(sp);
@@ -46,13 +39,11 @@ vec3 skyLay(vec3 rd, out float cover, out float ink) {
       cover *= 1.0 - smoothstep(0.1, 0.04, length(fract(sp) - 0.5 - so * 0.6)) * step(0.8, star) * uNight;
     }
   }
-  // sun and moon: discs of paper
   cover *= 1.0 - smoothstep(0.9984, 0.9990, dot(rd, uSunDisk)) * (1.0 - uNight) * step(0.0, rd.y);
   float md = dot(rd, uMoonDisk);
   float moon = smoothstep(0.9986, 0.9991, md) * (1.0 - 0.9 * smoothstep(0.9986, 0.9991, dot(rd, normalize(uMoonDisk + vec3(0.022, 0.013, 0.0)))));
   cover *= 1.0 - moon * uNight;
 
-  // far ranges: two pale rows of hills with a soft line along each crest
   vec2 az = normalize(rd.xz + 1e-5);
   float r1 = 0.02 + 0.1 * fbm(az * 2.2 + 4.0);
   float r2 = 0.01 + 0.06 * fbm(az * 3.6 + 11.0);
@@ -62,35 +53,25 @@ vec3 skyLay(vec3 rd, out float cover, out float ink) {
   pig = mix(pig, far1, m1); cover = mix(cover, mix(0.26, 0.6, uNight), m1);
   pig = mix(pig, far2, m2); cover = mix(cover, mix(0.36, 0.72, uNight), m2);
   ink = max(smoothstep(0.003, 0.0, abs(rd.y - r1)), smoothstep(0.003, 0.0, abs(rd.y - r2))) * 0.3;
-  // the horizon itself stays paper: mist is drawn by leaving it out
   float mist = smoothstep(-0.005, 0.03, rd.y);
   cover *= mist; ink *= mist;
   return pig;
 }
 `);
 
-registerChunk('lighting', /* glsl */ `
-// What a material hands to the drawing hand.
-//   albedo  the pencil            cover  how firmly it is laid (0 = bare paper)
-//   ink     pen marks on it       soft   0 pointed hatch, 1 broad pulls
-//   solid   1 = flat ink (eyes)   glow   1 = it is a light, so it is paper
+registerChunk('lighting', glsl`
 struct Surf { vec3 albedo; float cover; float ink; float soft; float solid; float glow; float wrap; float leafy; float moss; float occ; };
 Surf newSurf() { return Surf(P_STONE, 0.8, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0); }
 
-uniform vec4 uLightPos[MAX_LIGHTS];   // xyz, radius
-uniform vec3 uLightCol[MAX_LIGHTS];   // strength in .r (colour is not used: light is paper)
+uniform vec4 uLightPos[MAX_LIGHTS];
+uniform vec3 uLightCol[MAX_LIGHTS];
 uniform int uLightCount;
 
-float gSun = 1.0;   // large-scale dimming of the key light (cloud shadows)
+float gSun = 1.0;
 
-// The pen has one width on the page however far away the thing is. A pass sets
-// gPen to that width in the units its materials measure in; penLine(d) is then a
-// drawn line where the distance d is zero.
 float gPen = 0.02;
 float penLine(float d) { return 1.0 - smoothstep(gPen * 0.55, gPen * 1.15, abs(d)); }
 
-// How much a lamp, fire or spell lifts the pencil off the page here: 0..1.
-// It has no cut edge; the lay simply thins toward the light.
 float lightPool(vec3 p, vec3 N) {
   float acc = 0.0;
   for (int i = 0; i < MAX_LIGHTS; i++) {
@@ -106,8 +87,6 @@ float lightPool(vec3 p, vec3 N) {
   return saturate(acc);
 }
 
-// How much of the shading pencil goes over a point: 0 lit, about a half in the
-// half-tone, 1 in shadow. Three steps, as a hand shades.
 float shadeAmount(Surf s, vec3 N, float shadow, float ao) {
   float ndl = dot(N, uSunDir);
   float i = saturate((ndl + s.wrap) / (1.0 + s.wrap)) * shadow;
@@ -116,7 +95,6 @@ float shadeAmount(Surf s, vec3 N, float shadow, float ao) {
   return max(sh, (1.0 - gSun) * 0.9);
 }
 
-// Soft shadow of a sphere (after Inigo Quilez). Entities cast these on the world.
 float sphereShadow(vec3 ro, vec3 rd, vec4 sph, float k) {
   vec3 oc = ro - sph.xyz;
   float b = dot(oc, rd);

@@ -1,19 +1,13 @@
-// Brushwild audio: effects, a calm generative piano-and-strings piece and a
-// quiet outdoor ambience, all synthesized with the Web Audio API (no files).
-//
-// To add a sound, add one entry to SOUNDS keyed by the bus event name. It is
-// called with the kit (tone, noise, piano, bell, key) and the event payload.
-
-const LEVELS = { master: 1, sfx: 1, music: 0.6, ambience: 0.55 }; // the mix: music sits well under effects
-const MAX_VOICES = { sfx: 24, chime: 16, music: 48, ambience: 16 }; // a sound past its cap is skipped
-const HEARING = 30;        // world units beyond which monster sounds are silent
-const NEAR = 4;            // ...and within which they play at full level
-const REPEAT_GAP = 0.035;  // an event fired twice at once is staggered, not stacked
+const LEVELS = { master: 1, sfx: 1, music: 0.6, ambience: 0.55 };
+const MAX_VOICES = { sfx: 24, chime: 16, music: 48, ambience: 16 };
+const HEARING = 30;
+const NEAR = 4;
+const REPEAT_GAP = 0.035;
 const REPEAT_GAPS = { step: 0.13, 'charge:dust': 0.1 };
-const MAX_STAGGER = 0.12;  // a repeat that would have to wait longer is dropped
-const TICK = 0.1;          // seconds between scheduler updates
-const LOOKAHEAD = 0.5;     // music is scheduled this far ahead of the audio clock
-const MIN_GAIN = 0.0004;   // quieter than this is not worth a voice
+const MAX_STAGGER = 0.12;
+const TICK = 0.1;
+const LOOKAHEAD = 0.5;
+const MIN_GAIN = 0.0004;
 
 const rand = (lo = 0, hi = 1) => lo + Math.random() * (hi - lo);
 const randInt = (lo, hi) => Math.floor(rand(lo, hi + 1));
@@ -21,12 +15,9 @@ const pick = (list) => list[Math.floor(Math.random() * list.length)];
 const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
 const mtof = (midi) => 440 * 2 ** ((midi - 69) / 12);
 const pitchClass = (n) => ((n % 12) + 12) % 12;
-const fold = (midi, floor) => midi + 12 * Math.ceil((floor - midi) / 12); // into [floor, floor + 12)
+const fold = (midi, floor) => midi + 12 * Math.ceil((floor - midi) / 12);
 const lookup = (table, key, fallback) => (Object.hasOwn(table, key) ? table[key] : fallback);
 
-// ---------------------------------------------------------------- effects
-
-// Each monster's voice: base pitch (Hz), waveform, and how its call bends.
 const MONSTER_VOICE = {
   sproutling: { freq: 820, type: 'triangle', bend: 1.3 },
   puffcap: { freq: 470, type: 'sine', bend: 0.72 },
@@ -38,9 +29,8 @@ const MONSTER_VOICE = {
 const DEFAULT_VOICE = { freq: 600, type: 'triangle', bend: 1.2 };
 const voiceOf = (m) => lookup(MONSTER_VOICE, m.defId, DEFAULT_VOICE);
 
-// 'skill' events by skill id ('cleave' already gets 'swing').
 const SKILL_SOUNDS = {
-  bolt(k) {
+  emberbolt(k) {
     k.noise({ freq: 420, to: 1700, glide: 0.22, q: 0.9, attack: 0.05, hold: 0.05, decay: 0.4, gain: 0.13 });
     k.tone({ type: 'triangle', freq: 210, to: 95, attack: 0.02, decay: 0.4, gain: 0.08 });
   },
@@ -48,14 +38,40 @@ const SKILL_SOUNDS = {
     for (const step of [0, 3, 5]) k.tone({ bus: 'chime', freq: k.key(step, 62), attack: 0.3, hold: 0.15, decay: 1.4, gain: 0.045 });
     k.bell(k.key(7, 62), { bus: 'chime', at: 0.3, decay: 1.2, gain: 0.04 });
   },
-  step(k) {
+  galestep(k) {
     k.noise({ freq: 2100, to: 650, glide: 0.2, q: 0.7, attack: 0.03, decay: 0.3, gain: 0.1 });
   },
 };
 
-// Gains are peak levels (about 0.05 subtle, 0.2 strong); decays are the time to
-// fade out. `bus: 'chime'` is for ringing sounds: more reverb, and its own voice
-// cap so long tails never crowd out footsteps and hits. `at` delays a layer.
+const BEHAVIOR_SOUNDS = {
+  projectile(k, element) {
+    if (element === 'physical') { k.noise({ freq: 2600, to: 900, glide: 0.12, q: 1.6, attack: 0.004, decay: 0.16, gain: 0.08 }); return; }
+    k.noise({ freq: element === 'frost' ? 2400 : 500, to: element === 'frost' ? 900 : 1700, glide: 0.18, q: 0.9, attack: 0.04, decay: 0.32, gain: 0.1 });
+    k.tone({ type: 'triangle', freq: element === 'storm' ? 660 : 240, to: element === 'storm' ? 990 : 110, decay: 0.3, gain: 0.06 });
+  },
+  nova(k, element) {
+    k.noise({ freq: element === 'frost' ? 2600 : 900, to: 300, glide: 0.3, q: 0.7, attack: 0.01, decay: 0.5, gain: 0.12 });
+    k.tone({ freq: 130, to: 70, decay: 0.4, gain: 0.1 });
+  },
+  buff(k) {
+    for (const step of [0, 4, 7]) k.tone({ bus: 'chime', freq: k.key(step, 57), attack: 0.05, hold: 0.1, decay: 0.9, gain: 0.05 });
+  },
+  barrier(k) {
+    k.bell(k.key(0, 57), { bus: 'chime', decay: 1.4, gain: 0.07 });
+    k.noise({ filter: 'lowpass', freq: 900, to: 300, attack: 0.05, decay: 0.5, gain: 0.06 });
+  },
+  heal(k) { SKILL_SOUNDS.mend(k); },
+  dash(k) { SKILL_SOUNDS.galestep(k); },
+  leap(k) { k.noise({ freq: 700, to: 2200, glide: 0.35, q: 0.7, attack: 0.05, decay: 0.45, gain: 0.08 }); },
+  chain(k) { k.noise({ filter: 'bandpass', freq: 3000, q: 2, attack: 0.003, decay: 0.2, gain: 0.08 }); },
+  trap(k) { k.tone({ type: 'square', freq: 1200, to: 600, decay: 0.06, gain: 0.04 }); k.tone({ freq: 300, decay: 0.12, gain: 0.05, at: 0.05 }); },
+  mark(k) { k.bell(k.key(9, 69), { bus: 'chime', decay: 1.2, gain: 0.05 }); },
+  zone(k, element) { k.noise({ filter: 'lowpass', freq: element === 'fire' ? 1200 : 2400, to: 400, attack: 0.25, hold: 0.3, decay: 1.0, gain: 0.08 }); },
+  blast(k) { k.noise({ freq: 400, to: 1400, glide: 0.3, q: 0.8, attack: 0.1, decay: 0.3, gain: 0.06 }); },
+};
+
+const UI_SOUNDS = new Set(['ui:click', 'deny', 'trade']);
+
 const SOUNDS = {
   step(k, { entity, water }) {
     if (entity && entity.kind !== 'player') return;
@@ -86,7 +102,7 @@ const SOUNDS = {
       k.noise({ filter: 'lowpass', freq: 380, to: 160, decay: 0.2, gain: 0.12 });
       return;
     }
-    if (target && target.guard) {       // tucked in its shell: the blow glances off, dry and high
+    if (target && target.guard) {
       k.tone({ type: 'triangle', freq: 1180 * v, to: 900 * v, glide: 0.04, attack: 0.002, decay: 0.1, gain: 0.08 });
       k.noise({ freq: 3000, q: 2, attack: 0.002, decay: 0.05, gain: 0.06 });
       return;
@@ -94,11 +110,9 @@ const SOUNDS = {
     k.noise({ freq: (crit ? 1700 : 1150) * v, q: 1.1, attack: 0.003, decay: 0.12, gain: crit ? 0.17 : 0.14 });
     k.tone({ type: 'triangle', freq: 230 * v, to: 120 * v, attack: 0.003, decay: 0.16, gain: 0.15 });
     if (crit) k.bell(k.key(3, 74), { decay: 0.5, gain: 0.05 });
-    // the blow that fells a creature lands lower and longer
     if (target && target.hp <= 0) k.tone({ freq: 104 * v, to: 46, attack: 0.004, decay: target.elite ? 0.55 : 0.3, gain: target.elite ? 0.2 : 0.13 });
   }, (p) => p.target),
 
-  // A creature winds up its move: its own voice, rising, while the mark on the ground fills in.
   'monster:special': spatial((k, m) => {
     const voice = voiceOf(m), f = voice.freq * (m.elite ? 0.82 : 1);
     k.tone({ type: voice.type, cutoff: Math.min(2400, f * 3.5), freq: f * 0.62, to: f * 1.25, glide: 0.32, attack: 0.06, hold: 0.16, decay: 0.22, gain: 0.085 });
@@ -123,11 +137,10 @@ const SOUNDS = {
   }),
 
   'hazard:cloud': spatial((k, { life }) => {
-    k.tone({ freq: 240, to: 150, glide: 0.2, attack: 0.02, decay: 0.24, gain: 0.05 });       // the puff
+    k.tone({ freq: 240, to: 150, glide: 0.2, attack: 0.02, decay: 0.24, gain: 0.05 });
     k.noise({ freq: 2600, to: 1100, glide: 0.8, q: 0.7, attack: 0.18, hold: 0.25, decay: Math.min(1.6, (life || 2) * 0.5), gain: 0.05 });
   }),
 
-  // hooves: one beat for each puff of dust a charge kicks up
   'charge:dust': spatial((k) => {
     const v = rand(0.9, 1.12);
     k.tone({ freq: 84 * v, to: 52 * v, decay: 0.11, gain: 0.075 });
@@ -139,13 +152,11 @@ const SOUNDS = {
     k.noise({ freq: 2800, q: 2, attack: 0.002, decay: 0.05, gain: 0.05 });
   }, (p) => p.entity),
 
-  // stepping out of the way of a blow: a breath of air
   miss(k, { target, text }) {
     if (!target || target.kind !== 'player' || text !== 'Dodged') return;
     k.noise({ freq: 1500, to: 3000, glide: 0.1, q: 1.6, attack: 0.03, decay: 0.14, gain: 0.05 });
   },
 
-  // two soft, low knocks, like a pulse: heard once, when health first runs low
   lowhealth(k) {
     for (const at of [0, 0.26]) k.tone({ freq: 74, to: 52, at, attack: 0.008, decay: 0.26, gain: at ? 0.13 : 0.17 });
   },
@@ -195,9 +206,44 @@ const SOUNDS = {
     k.tone({ freq: 330, to: 540, glide: 0.05, at: 0.1, decay: 0.1, gain: 0.1 });
   },
 
-  skill(k, { id }) {
-    const play = lookup(SKILL_SOUNDS, id, null);
-    if (play) play(k);
+  skill(k, { id, behavior, element }) {
+    const play = lookup(SKILL_SOUNDS, id, null) || lookup(BEHAVIOR_SOUNDS, behavior, null);
+    if (play) play(k, element);
+  },
+
+  evade(k) {
+    k.noise({ freq: 1800, to: 520, glide: 0.18, q: 0.8, attack: 0.02, decay: 0.24, gain: 0.09 });
+  },
+
+  blast: spatial((k, { element, heavy }) => {
+    const low = element === 'frost' ? 300 : element === 'storm' ? 900 : 180;
+    k.noise({ filter: 'lowpass', freq: element === 'frost' ? 3200 : 1400, to: 260, attack: 0.006, decay: heavy ? 0.7 : 0.45, gain: heavy ? 0.2 : 0.14 });
+    k.tone({ freq: low, to: low * 0.42, decay: heavy ? 0.5 : 0.3, gain: heavy ? 0.18 : 0.12 });
+    if (element === 'frost') k.bell(1568, { bus: 'chime', decay: 0.6, gain: 0.03 });
+  }),
+
+  chain(k) {
+    k.noise({ filter: 'bandpass', freq: 3400, to: 1200, glide: 0.08, q: 2.5, attack: 0.003, decay: 0.12, gain: 0.1 });
+    k.tone({ type: 'square', freq: 880, to: 1320, glide: 0.05, decay: 0.08, gain: 0.03 });
+  },
+
+  'item:legendary'(k) {
+    for (const [i, step] of [0, 4, 7, 12].entries()) k.bell(k.key(step, 69), { bus: 'chime', at: i * 0.09, decay: 2.4, gain: 0.06 });
+    k.tone({ bus: 'chime', freq: k.key(0, 45), attack: 0.2, hold: 0.2, decay: 1.6, gain: 0.05 });
+  },
+
+  'dungeon:cleared'(k) {
+    for (const [i, step] of [0, 2, 4, 7, 9, 12].entries()) k.bell(k.key(step, 62), { bus: 'chime', at: i * 0.12, decay: 2.6, gain: 0.06 });
+  },
+
+  'zone:enter'(k) {
+    k.noise({ filter: 'lowpass', freq: 600, to: 120, attack: 0.3, hold: 0.3, decay: 1.4, gain: 0.12 });
+    k.tone({ freq: 73.4, to: 55, attack: 0.2, decay: 1.6, gain: 0.08 });
+  },
+
+  'boss:spawn'(k) {
+    k.tone({ type: 'sawtooth', freq: 55, to: 49, attack: 0.4, hold: 0.5, decay: 2.2, gain: 0.05, cutoff: 400 });
+    k.tone({ freq: 110, to: 98, attack: 0.4, hold: 0.5, decay: 2, gain: 0.06 });
   },
 
   'bolt:hit': spatial((k) => {
@@ -249,15 +295,15 @@ const SOUNDS = {
   },
 
   found(k, { kind }) {
-    if (kind === 'stones') return;                    // the boon they lend is the sound
-    if (kind === 'cache') {                           // a lid knocked open
+    if (kind === 'stones') return;
+    if (kind === 'cache') {
       k.noise({ filter: 'lowpass', freq: 800, to: 300, attack: 0.003, decay: 0.12, gain: 0.09 });
       k.tone({ type: 'triangle', cutoff: 900, freq: 170, to: 118, glide: 0.05, attack: 0.003, decay: 0.14, gain: 0.1 });
       k.bell(k.key(5, 74), { bus: 'chime', at: 0.12, decay: 1.2, gain: 0.05 });
-    } else if (kind === 'beacon') {                   // lit: a low bell, and the places it shows answer
+    } else if (kind === 'beacon') {
       k.bell(k.key(0, 57), { bus: 'chime', decay: 2.8, gain: 0.09 });
       [2, 3, 5].forEach((step, i) => k.bell(k.key(step, 69), { bus: 'chime', at: 0.35 + i * 0.16, decay: 1.3, gain: 0.045 }));
-    } else {                                          // a place, after the two notes that greet it
+    } else {
       k.bell(k.key(5, 69), { bus: 'chime', at: 0.85, decay: 1.8, gain: 0.045 });
     }
   },
@@ -278,21 +324,12 @@ const SOUNDS = {
     k.noise({ freq: 1800, to: 500, glide: 0.4, q: 0.8, attack: 0.02, decay: 0.5, gain: 0.05 });
   },
 
-  talent(k) {
-    const note = { bus: 'chime', strings: 1, ring: 0.6 };
-    k.piano(k.key(3, 57), { ...note, gain: 0.16 });
-    k.piano(k.key(5, 57), { ...note, at: 0.14, gain: 0.17 });
-    k.bell(k.key(8, 57), { bus: 'chime', at: 0.3, decay: 1.4, gain: 0.04 });
-  },
-
-  // a new country underfoot; a fuller chord when the Long Walk reaches one of its marks
   land(k, { mark }) {
     const note = { bus: 'chime', strings: 1, ring: 0.7 };
     [0, 2, 3].forEach((step, i) => k.piano(k.key(step, 57), { ...note, at: i * 0.22, gain: 0.15 }));
     if (mark) for (const step of [0, 3, 5]) k.piano(k.key(step, 57), { ...note, ring: 1, at: 0.8, gain: 0.13 });
   },
 
-  // dusk settles on the relative minor: an open fifth, low and slow
   nightfall(k) {
     for (const step of [-1, 2]) k.tone({ bus: 'chime', freq: k.key(step, 57), attack: 0.6, hold: 0.5, decay: 2.4, gain: 0.05 });
     k.bell(k.key(4, 69), { bus: 'chime', at: 1, decay: 2.2, gain: 0.035 });
@@ -302,38 +339,31 @@ const SOUNDS = {
     [0, 2, 3].forEach((step, i) => k.bell(k.key(step, 74), { bus: 'chime', at: i * 0.2, decay: 1.6, gain: 0.045 }));
   },
 
-  // glint picked back up from where the hero fell
   recovered(k) {
     [0, 2, 3, 5].forEach((step, i) => k.bell(k.key(step, 79), { at: i * 0.07, decay: 0.5, gain: 0.06 }));
   },
 
-  // a first step learned
   'guide:step'(k) {
     k.bell(k.key(3, 74), { bus: 'chime', decay: 0.7, gain: 0.05 });
     k.bell(k.key(5, 74), { bus: 'chime', at: 0.1, decay: 1, gain: 0.05 });
   },
 };
 
-/** Wraps a sound so it fades with distance from the player (silent past HEARING). */
 function spatial(play, where = (payload) => payload) {
   return (k, payload) => {
     const level = k.nearness(where(payload));
     if (level <= 0.02) return;
-    k.level = level; // reset after every event by the dispatcher
+    k.level = level;
     play(k, payload);
   };
 }
 
-// ---------------------------------------------------------- music tables
-
-const KEY_ROOT = 50; // D3; biomes shift the key from here
+const KEY_ROOT = 50;
 const PENTA = [0, 2, 4, 7, 9];
-const SECTION_BARS = 4; // time of day and biome are re-read once per section
+const SECTION_BARS = 4;
 const CHORD_BARS = 2;
-const SLOT_WEIGHT = [1.3, 0.15, 0.6, 0.25, 0.9, 0.15, 0.55, 0.25]; // piano chance on each eighth of a bar
+const SLOT_WEIGHT = [1.3, 0.15, 0.6, 0.25, 0.9, 0.15, 0.55, 0.25];
 
-// Chords as semitones above the key root: a bass note and an open pad voicing.
-// They are voiced so no pad note sits a semitone from a melody note.
 const CHORDS = {
   I: { bass: 0, pad: [0, 7, 16] },
   Isus: { bass: 0, pad: [0, 7, 14] },
@@ -343,10 +373,6 @@ const CHORDS = {
   ii: { bass: 2, pad: [-7, 2, 9] },
 };
 
-// Time of day. beat: seconds per beat; density: how often the piano speaks;
-// chords: the first is home; low/high: piano register above the key root;
-// rest: bars of silence between phrases; bass, violin: likelihoods;
-// pad: string brightness in Hz. Night leans on the relative minor.
 const TIMES = {
   morning: { beat: 1.05, density: 0.6, scale: PENTA, chords: ['I', 'IV', 'Isus', 'vi', 'Vsus'], low: 12, high: 36, rest: [1, 2], bass: 0.55, bassFloor: 40, violin: 1, pad: 820 },
   day: { beat: 1.1, density: 0.56, scale: PENTA, chords: ['I', 'Vsus', 'vi', 'IV', 'Isus'], low: 10, high: 34, rest: [1, 2], bass: 0.6, bassFloor: 40, violin: 1, pad: 760 },
@@ -354,8 +380,6 @@ const TIMES = {
   night: { beat: 1.32, density: 0.42, scale: PENTA, chords: ['vi', 'ii', 'IV', 'Isus'], low: 7, high: 27, rest: [2, 3], bass: 0.85, bassFloor: 38, violin: 0.8, pad: 560 },
 };
 
-// How each biome colors the music (key shift in semitones, violin and silence
-// multipliers) and the ambience (wind, bird and cricket amounts).
 const BIOME_SOUND = {
   meadow: { shift: 0, violin: 1, space: 1, wind: 0.7, birds: 1, crickets: 1 },
   grove: { shift: 5, violin: 1.2, space: 0.9, wind: 0.55, birds: 1.4, crickets: 0.8 },
@@ -367,14 +391,12 @@ const BIOME_SOUND = {
 const biomeSound = (game) => lookup(BIOME_SOUND, game.biome && game.biome.id, BIOME_SOUND.meadow);
 const nightOf = (game) => clamp((game.env && game.env.night) || 0, 0, 1);
 
-// ------------------------------------------------------------------ entry
-
 export function createAudio(game) {
   let kit = null, music = null, ambience = null;
-  let soundOn = true, volume = 1, lastTick = 0, warned = false;
-  const nextFree = new Map(); // per event: when its next repeat may start
+  let lastTick = 0, warned = false;
+  const mix = { master: 1, music: 1, sfx: 1, ambience: 1, ui: 1, mono: false, muteHidden: true };
+  const nextFree = new Map();
 
-  // Audio must never break the game loop: report the first problem and carry on.
   function safely(fn) {
     try { fn(); } catch (err) {
       if (!warned) console.warn('[audio]', err);
@@ -389,13 +411,14 @@ export function createAudio(game) {
       const fresh = createKit(new AudioCtx(), game);
       music = createMusic(fresh, game);
       ambience = createAmbience(fresh, game);
-      kit = fresh; // only once everything is built
+      kit = fresh;
+      kit.mix = mix;
+      applyMix();
       setMaster(0.4);
     }
     wake();
   }
 
-  // Browsers leave the context suspended without a gesture and may interrupt it later.
   function wake() {
     const ctx = kit && kit.ctx;
     if (ctx && ctx.state !== 'running' && ctx.state !== 'closed') ctx.resume()?.catch?.(() => {});
@@ -403,18 +426,31 @@ export function createAudio(game) {
 
   function setMaster(seconds = 0.12) {
     if (!kit) return;
-    const hidden = typeof document !== 'undefined' && document.hidden; // frames stop in a hidden tab, so fall silent
-    const target = soundOn && !hidden ? volume * LEVELS.master : 0;
+    const hidden = mix.muteHidden && typeof document !== 'undefined' && document.hidden;
+    const target = hidden ? 0 : LEVELS.master * mix.master;
     kit.master.gain.setTargetAtTime(target, kit.ctx.currentTime, seconds / 3);
   }
 
+  function applyMix() {
+    if (!kit) return;
+    const b = kit.buses, now = kit.ctx.currentTime;
+    b.sfx.node.gain.setTargetAtTime(LEVELS.sfx * mix.sfx, now, 0.05);
+    b.chime.node.gain.setTargetAtTime(LEVELS.sfx * mix.sfx, now, 0.05);
+    b.music.node.gain.setTargetAtTime(LEVELS.music * mix.music, now, 0.05);
+    b.amb.node.gain.setTargetAtTime(LEVELS.ambience * mix.ambience, now, 0.05);
+    b.air.node.gain.setTargetAtTime(LEVELS.ambience * mix.ambience, now, 0.05);
+    if (music && music.st) music.st.hush = -1;
+    setMaster();
+  }
+
   function trigger(type, payload) {
-    if (!kit || !soundOn || kit.ctx.state !== 'running') return;
+    if (!kit || kit.ctx.state !== 'running') return;
     const now = kit.ctx.currentTime;
     const wait = Math.max(0, (nextFree.get(type) || 0) - now);
     if (wait > MAX_STAGGER) return;
     nextFree.set(type, now + wait + (REPEAT_GAPS[type] ?? REPEAT_GAP));
     kit.delay = wait;
+    kit.level = UI_SOUNDS.has(type) ? mix.ui : 1;
     safely(() => SOUNDS[type](kit, payload ?? {}));
     kit.delay = 0;
     kit.level = 1;
@@ -432,29 +468,15 @@ export function createAudio(game) {
 
   const bus = game.bus;
   bus.on('begin', () => safely(boot));
-  bus.on('sound', (on) => { soundOn = !!on; safely(setMaster); });
+  bus.on('audio:mix', (m) => { Object.assign(mix, m); safely(applyMix); });
   bus.on('frame', () => safely(tick));
   for (const type of Object.keys(SOUNDS)) bus.on(type, (payload) => trigger(type, payload));
   if (typeof addEventListener === 'function') {
-    // phones only count some events as a gesture (a lifted finger, a click), so listen for them all
     for (const ev of ['pointerdown', 'pointerup', 'touchend', 'click', 'keydown']) addEventListener(ev, wake, { passive: true });
   }
   if (typeof document !== 'undefined') document.addEventListener('visibilitychange', () => safely(() => setMaster(0.3)));
-
-  return {
-    /** Master volume, 0..1. */
-    setVolume(v) {
-      const n = Number(v);
-      if (!Number.isFinite(n)) return;
-      volume = clamp(n, 0, 1);
-      safely(setMaster);
-    },
-  };
 }
 
-// -------------------------------------------------------------------- kit
-
-/** The mixer plus the few voices every sound is built from. */
 function createKit(ctx, game) {
   const master = ctx.createGain();
   master.gain.value = 0;
@@ -478,13 +500,12 @@ function createKit(ctx, game) {
     return { node, pool };
   };
   const buses = {
-    sfx: makeBus(LEVELS.sfx, 0.1, pools.sfx),            // close, nearly dry
-    chime: makeBus(LEVELS.sfx, 0.45, pools.chime),       // bells and piano flourishes
+    sfx: makeBus(LEVELS.sfx, 0.1, pools.sfx),
+    chime: makeBus(LEVELS.sfx, 0.45, pools.chime),
     music: makeBus(LEVELS.music, 0.55, pools.music),
-    amb: makeBus(LEVELS.ambience, 0, pools.ambience),    // wind and water beds
-    air: makeBus(LEVELS.ambience, 0.4, pools.ambience),  // birds and crickets, far off
+    amb: makeBus(LEVELS.ambience, 0, pools.ambience),
+    air: makeBus(LEVELS.ambience, 0.4, pools.ambience),
   };
-  // The string pad shares one low-pass so it can never buzz.
   const padFilter = ctx.createBiquadFilter();
   padFilter.frequency.value = TIMES.day.pad;
   padFilter.Q.value = 0.3;
@@ -492,12 +513,10 @@ function createKit(ctx, game) {
   buses.pad = { node: padFilter, pool: pools.music };
 
   const noiseBuffer = whiteNoise(ctx, 5);
-  // Felt piano tone: a strong fundamental and a few quickly fading harmonics.
   const felt = ctx.createPeriodicWave(new Float32Array(7), new Float32Array([0, 1, 0.45, 0.2, 0.1, 0.05, 0.025]));
 
   const startTime = (o) => o.when ?? ctx.currentTime + kit.delay + (o.at ?? 0);
 
-  // Linear attack, optional hold, then a decay that falls 60 dB. Returns the stop time.
   function envelope(param, t0, peak, o) {
     const attack = Math.max(0.002, o.attack ?? 0.005), hold = Math.max(0, o.hold ?? 0), decay = Math.max(0.01, o.decay ?? 0.2);
     const top = t0 + attack, fall = top + hold, end = fall + decay;
@@ -510,7 +529,6 @@ function createKit(ctx, game) {
     return end + 0.03;
   }
 
-  // Wires a voice to its bus, counts it, and cleans it up when it ends.
   function finish(source, chain, out, end, extras = []) {
     for (let i = 0; i < chain.length - 1; i++) chain[i].connect(chain[i + 1]);
     chain[chain.length - 1].connect(out.node);
@@ -523,12 +541,6 @@ function createKit(ctx, game) {
     source.stop(end);
   }
 
-  /**
-   * An enveloped oscillator note.
-   * o: freq, to (pitch glide target), glide (seconds), type | wave, detune (cents),
-   *    gain, attack, hold, decay, cutoff, cutoffTo (low-pass Hz), pan (-1..1),
-   *    vibrato { rate, depth (cents), delay }, bus, at (seconds from now) | when (absolute).
-   */
   function tone(o) {
     const out = buses[o.bus] || buses.sfx, peak = (o.gain ?? 0.1) * kit.level;
     if (out.pool.n >= out.pool.max || !(peak > MIN_GAIN) || !(o.freq > 0)) return;
@@ -544,14 +556,14 @@ function createKit(ctx, game) {
 
     const chain = [osc], extras = [];
     if (o.cutoff > 0) {
-      const filter = ctx.createBiquadFilter(); // low-pass by default
+      const filter = ctx.createBiquadFilter();
       filter.Q.value = 0.5;
       filter.frequency.setValueAtTime(o.cutoff, t0);
       if (o.cutoffTo > 0) filter.frequency.exponentialRampToValueAtTime(o.cutoffTo, glideEnd);
       chain.push(filter);
     }
     chain.push(amp);
-    if (o.pan && ctx.createStereoPanner) {
+    if (o.pan && !(kit.mix && kit.mix.mono) && ctx.createStereoPanner) {
       const panner = ctx.createStereoPanner();
       panner.pan.value = o.pan;
       chain.push(panner);
@@ -571,13 +583,6 @@ function createKit(ctx, game) {
     finish(osc, chain, out, end, extras);
   }
 
-  /**
-   * A filtered noise burst.
-   * o: filter ('bandpass' | 'lowpass' | 'highpass'), freq, to (sweep target), glide, q,
-   *    gain, attack, hold, decay, bus, at | when.
-   * Gain is compensated for the filter's width, so it means about the same
-   * loudness at any cutoff.
-   */
   function noise(o) {
     const out = buses[o.bus] || buses.sfx, type = o.filter || 'bandpass', q = o.q ?? 0.8;
     const freq = o.freq ?? 1000, mid = o.to > 0 ? Math.sqrt(freq * o.to) : freq, nyquist = ctx.sampleRate / 2;
@@ -599,13 +604,9 @@ function createKit(ctx, game) {
     finish(src, [src, filter, amp], out, end);
   }
 
-  /**
-   * Felt piano: two slightly detuned strings whose tone rounds off as they ring.
-   * o: gain, ring (decay multiplier), strings (1 for a lighter voice), bus, at | when.
-   */
   function piano(freq, o = {}) {
     const strings = o.strings === 1 ? [0] : [-2.5, 2.5];
-    const ring = clamp(6 * (220 / freq) ** 0.35, 2.5, 7.5) * (o.ring ?? 1); // low notes ring longer
+    const ring = clamp(6 * (220 / freq) ** 0.35, 2.5, 7.5) * (o.ring ?? 1);
     for (const detune of strings) {
       tone({
         bus: o.bus, at: o.at, when: o.when, wave: felt, freq, detune, attack: 0.01, decay: ring,
@@ -615,7 +616,6 @@ function createKit(ctx, game) {
     }
   }
 
-  /** Soft bell: a sine with one inharmonic partial that fades sooner. o: gain, decay, bus, at. */
   function bell(freq, o = {}) {
     const gain = o.gain ?? 0.07, decay = o.decay ?? 0.6, base = { bus: o.bus, at: o.at, attack: 0.004 };
     tone({ ...base, freq, decay, gain });
@@ -624,20 +624,15 @@ function createKit(ctx, game) {
 
   const kit = {
     ctx, master, buses, noiseBuffer, tone, noise, piano, bell,
-    level: 1,        // distance scale for the sound being triggered
-    delay: 0,        // stagger for the sound being triggered
-    root: KEY_ROOT,  // the music's current key root (MIDI)
+    level: 1,
+    delay: 0,
+    root: KEY_ROOT,
 
-    /**
-     * Frequency of a pentatonic step in the music's current key, so chimes agree
-     * with the piano. Step 0 is the tonic at or above MIDI `floor`; 5 is an octave up.
-     */
     key(step, floor = 60) {
       const octave = Math.floor(step / 5);
       return mtof(fold(kit.root, floor) + 12 * octave + PENTA[step - 5 * octave]);
     },
 
-    /** 1 beside the player, falling to 0 at HEARING; 1 when `at` has no position. */
     nearness(at) {
       const p = game.player;
       if (!at || !p || !Number.isFinite(at.x) || !Number.isFinite(at.z)) return 1;
@@ -655,7 +650,6 @@ function whiteNoise(ctx, seconds) {
   return buffer;
 }
 
-// Reverb impulse: stereo noise that fades and darkens, like a wooden hall.
 function impulse(ctx, seconds) {
   const rate = ctx.sampleRate, n = Math.floor(rate * seconds), pre = Math.floor(rate * 0.018);
   const buffer = ctx.createBuffer(2, n, rate);
@@ -671,7 +665,6 @@ function impulse(ctx, seconds) {
   return buffer;
 }
 
-// Transparent below 0.6, then rounds off, so stacked sounds never clip harshly.
 function softClip(ctx) {
   const shaper = ctx.createWaveShaper(), n = 2048, curve = new Float32Array(n), knee = 0.6;
   for (let i = 0; i < n; i++) {
@@ -682,24 +675,16 @@ function softClip(ctx) {
   return shaper;
 }
 
-// ------------------------------------------------------------------ music
-
-/**
- * Generative piece: a slow string pad changes chord every two bars, a felt
- * piano speaks in short phrases with bars of silence between them, and now and
- * then a violin plays one long line. Nothing repeats; each bar is scheduled a
- * moment before it starts, on the audio clock.
- */
 function createMusic(kit, game) {
   const st = {
-    at: -Infinity,    // start time of the next bar
+    at: -Infinity,
     bar: 0,
     mood: TIMES.day, color: BIOME_SOUND.meadow,
-    chordName: '', tones: new Set(), // the current chord and its pitch classes
-    ladder: [],       // piano notes available in this key and register
-    last: 0,          // last melody note (MIDI)
-    phrase: 2, rest: 0,              // bars left in the piano's phrase / silence
-    violinIn: 2, violinBars: 0,      // chord changes until the next violin line / bars it still plays
+    chordName: '', tones: new Set(),
+    ladder: [],
+    last: 0,
+    phrase: 2, rest: 0,
+    violinIn: 2, violinBars: 0,
     hush: -1,
   };
 
@@ -708,7 +693,7 @@ function createMusic(kit, game) {
     st.mood = TIMES[night > 0.6 ? 'night' : night > 0.15 ? 'dusk' : hour < 11.5 ? 'morning' : 'day'];
     st.color = biomeSound(game);
     const root = KEY_ROOT + st.color.shift;
-    if (root !== kit.root && st.bar > 0) { st.phrase = 0; st.rest = Math.max(st.rest, 1); } // let a new key settle first
+    if (root !== kit.root && st.bar > 0) { st.phrase = 0; st.rest = Math.max(st.rest, 1); }
     kit.root = root;
     st.ladder = [];
     for (let m = root + st.mood.low; m <= root + st.mood.high; m++) if (st.mood.scale.includes(pitchClass(m - root))) st.ladder.push(m);
@@ -744,23 +729,21 @@ function createMusic(kit, game) {
     return best;
   }
 
-  // The melody wanders by step, leaning back toward the middle of its register.
   function nextPitch(strong) {
     const ladder = st.ladder, top = ladder.length - 1;
     let i = 0;
     for (let j = 1; j <= top; j++) if (Math.abs(ladder[j] - st.last) < Math.abs(ladder[i] - st.last)) i = j;
     const up = rand() < 0.5 + ((top / 2 - i) / (top + 1)) * 0.9;
     const step = (up ? 1 : -1) * (rand() < 0.72 ? 1 : 2);
-    i = clamp(i + step < 0 || i + step > top ? i - step : i + step, 0, top); // turn around at the edges
+    i = clamp(i + step < 0 || i + step > top ? i - step : i + step, 0, top);
     let midi = ladder[i];
-    // strong beats settle on a chord tone, unless that would just repeat the last note
     if (strong && rand() < 0.7 && chordTone(midi) !== st.last) midi = chordTone(midi);
     st.last = midi;
     return midi;
   }
 
   function pianoBar(t0, beat) {
-    const density = st.mood.density * (st.violinBars > 0 ? 0.45 : 1); // make room for the violin
+    const density = st.mood.density * (st.violinBars > 0 ? 0.45 : 1);
     for (let slot = 0; slot < SLOT_WEIGHT.length; slot++) {
       if (rand() > SLOT_WEIGHT[slot] * density) continue;
       const strong = slot % 4 === 0;
@@ -769,13 +752,11 @@ function createMusic(kit, game) {
       const gain = rand(0.12, 0.18) * (strong ? 1 : 0.85);
       kit.piano(mtof(midi), { bus: 'music', when, gain });
       if (!strong || rand() > 0.3) continue;
-      // now and then a chord tone a third to a sixth below makes a two-note chord
       const under = st.ladder.findLast((m) => m <= midi - 3 && m >= midi - 9 && inChord(m));
       if (under) kit.piano(mtof(under), { bus: 'music', when: when + 0.025, gain: gain * 0.7 });
     }
   }
 
-  // Two to four long legato notes inside one chord, starting and ending on chord tones.
   function violinLine(t0, beat) {
     const floor = kit.root + st.mood.low + 5;
     const reach = st.ladder.filter((m) => m >= floor && m <= floor + 16);
@@ -788,7 +769,7 @@ function createMusic(kit, game) {
       left -= beats;
       const anchor = n === 0 || n === 3 || left < 2;
       let midi = anchor ? chordTone(reach[i]) : reach[i];
-      if (midi === prev) midi = reach[clamp(i + dir, 0, top)]; // do not bow the same note twice
+      if (midi === prev) midi = reach[clamp(i + dir, 0, top)];
       prev = midi;
       const freq = mtof(midi), dur = beats * beat;
       for (const [detune, gain] of [[0, 0.055], [6, 0.025]]) {
@@ -798,7 +779,7 @@ function createMusic(kit, game) {
         });
       }
       when += dur;
-      if (i + dir < 0 || i + dir > top) dir = -dir; // the line rises or falls, turning at the edge of its range
+      if (i + dir < 0 || i + dir > top) dir = -dir;
       i = clamp(i + dir * pick([1, 1, 2]), 0, top);
     }
   }
@@ -822,22 +803,18 @@ function createMusic(kit, game) {
 
   return {
     update(now) {
-      if (st.at < now - 1) { st.bar = 0; st.at = now + 0.4; } // first run, or back from a stall: open a fresh section
+      if (st.at < now - 1) { st.bar = 0; st.at = now + 0.4; }
       while (st.at < now + LOOKAHEAD) scheduleBar();
-      // softer behind the title screen and while the player is down
       const hush = game.paused ? 0.7 : game.player && game.player.dead ? 0.5 : 1;
       if (hush === st.hush) return;
       st.hush = hush;
-      kit.buses.music.node.gain.setTargetAtTime(LEVELS.music * hush, now, 0.7);
+      kit.buses.music.node.gain.setTargetAtTime(LEVELS.music * hush * (kit.mix ? kit.mix.music : 1), now, 0.7);
     },
   };
 }
 
-// --------------------------------------------------------------- ambience
+const WATER_RINGS = [[4, 1], [8, 0.7], [13, 0.4]];
 
-const WATER_RINGS = [[4, 1], [8, 0.7], [13, 0.4]]; // [radius, weight] of the samples around the player
-
-/** 0..1: how much water lies around the player (1 on a shoreline or wading). */
 function waterNear(game) {
   const world = game.world, p = game.player;
   if (!world || typeof world.waterDepth !== 'function' || !p || !Number.isFinite(p.x) || !Number.isFinite(p.z)) return 0;
@@ -852,11 +829,9 @@ function waterNear(game) {
   return clamp((wet / total) * 2.4, 0, 1);
 }
 
-/** A wind bed, a water wash near water, birds by day and crickets by night. */
 function createAmbience(kit, game) {
   const ctx = kit.ctx;
 
-  // A looping band of noise whose level and tone are steered from update().
   function bed(rate, highpass, lowpass) {
     const src = ctx.createBufferSource(), hp = ctx.createBiquadFilter(), lp = ctx.createBiquadFilter(), gain = ctx.createGain();
     src.buffer = kit.noiseBuffer;
@@ -876,11 +851,11 @@ function createAmbience(kit, game) {
   function birdSong() {
     const base = rand(1900, 3000), voice = { bus: 'air', pan: rand(-0.8, 0.8), gain: rand(0.018, 0.032), attack: 0.012 };
     const kind = randInt(0, 2);
-    if (kind === 0) { // a few rising tweets
+    if (kind === 0) {
       for (let i = 0, n = randInt(2, 3); i < n; i++) kit.tone({ ...voice, freq: base, to: base * 1.3, glide: 0.07, at: i * 0.17, decay: 0.12 });
-    } else if (kind === 1) { // a short falling trill
+    } else if (kind === 1) {
       for (let i = 0, n = randInt(3, 6); i < n; i++) kit.tone({ ...voice, freq: base * (1.2 - i * 0.035), to: base * (1.05 - i * 0.035), glide: 0.04, at: i * 0.08, decay: 0.07 });
-    } else { // a slow two-note call
+    } else {
       kit.tone({ ...voice, freq: base * 0.85, hold: 0.14, decay: 0.2 });
       kit.tone({ ...voice, freq: base * 0.67, at: 0.34, hold: 0.2, decay: 0.3 });
     }
@@ -902,7 +877,7 @@ function createAmbience(kit, game) {
         const gust = 0.5 + 0.3 * Math.sin(now * 0.13) + 0.2 * Math.sin(now * 0.31 + 1.7);
         wind.level.setTargetAtTime(flavor.wind * (0.32 + 0.5 * gust), now, 0.9);
         wind.tone.setTargetAtTime(330 + 330 * gust, now, 0.9);
-        const wash = 0.5 + 0.5 * Math.sin(now * 0.85 + 0.6 * Math.sin(now * 0.23)); // waves swell and draw back
+        const wash = 0.5 + 0.5 * Math.sin(now * 0.85 + 0.6 * Math.sin(now * 0.23));
         water.level.setTargetAtTime(waterNear(game) * (0.22 + 0.36 * wash), now, 0.6);
         water.tone.setTargetAtTime(650 + 550 * wash, now, 0.6);
       }
