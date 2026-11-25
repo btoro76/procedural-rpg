@@ -117,14 +117,29 @@ The open world is unchanged in principle: seeded, chunked, infinite. New:
 - Panels pause the game (a setting). Everything is a real button with a name;
   arrow keys walk the bag and the skill tree; the gamepad drives menus by
   spatial navigation (`ui/padnav.ts`).
-- Item and class pictures are drawn in code (`ui/art.ts`): an SVG per drawing
-  kind (sword, greataxe, staff, bow, shield, focus, quiver, helm, chest, robe,
-  gloves, legs, boots, amulet, ring), with blade, guard, head, dye and trim
-  picked by a generator seeded with the item's id, materials as gradients under
-  a pencil hatch, and the rarity as a glow (and a ring of rays for legendary and
-  unique). Drawings are cached per item, size and colour-vision palette.
+- Item and class pictures are drawn in code (`ui/art.ts`). Each drawing kind
+  (sword, greataxe, staff, bow, shield, focus, quiver, helm, chest, robe,
+  gloves, legs, boots, amulet, ring) records its shapes, with blade, guard,
+  head, dye and trim picked by a generator seeded with the item's id. A canvas
+  renderer then draws them by hand: coloured-pencil hatching at the page's one
+  slant with paper showing through, a deeper pencil laid with a ragged edge on
+  the side away from the light, a sepia pen outline that wobbles, varies its
+  pressure and overshoots where it closes, colour a little off the lines, a
+  pencil halo in the rarity's colour, and paper tooth over everything. Drawings
+  are cached per item, pixel size and colour-vision palette, and `Painting`
+  copies them into a canvas at the element's real resolution.
 - The HUD is laid out in regions (left column, centre column, right column and
   a bottom dock) so nothing can overlap, at any window size or on touch screens.
+
+## Faces
+
+Heroes and townsfolk wear an expression (`systems/faces.ts`), packed into the
+figure's spare data and drawn by the humanoid shader: content (the default, a
+small smile), focused while casting, hurt when struck, joy on a level, a
+legendary, a cleared dungeon or a claimed bounty, surprise on an evade or a
+boss, worry at low health, and crossed-out eyes when fallen. Moments outrank
+states by weight, so a blow interrupts a smile but a smile does not interrupt a
+wince. Townsfolk cheer when spoken to; the hero cheers on the class screen.
 
 ## Projectiles
 

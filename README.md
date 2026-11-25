@@ -95,7 +95,7 @@ A new journey opens with a few first steps, each finished by doing it; they can 
 
 Hatching is laid in *paper coordinates*, projected on the right and up axes of a held view direction, so strokes stay glued to the world while the camera moves and a fresh direction fades in once the view has turned far enough. Stroke size is chosen per depth from nested levels, so hatching is the same width near and far. There is no bloom, blur or tone mapping: nothing is lighter than the paper, night is drawn with indigo pencils, a lamp is a pool of bare paper, and distance is drawn by laying less.
 
-The interface uses the same hand: item and class pictures are SVG drawn by `src/ui/art.ts`, seeded by each item, so two swords of the same kind still differ in blade, guard and dye, with the rarity's colour as their light.
+The interface uses the same hand: item and class pictures are drawn on canvas by `src/ui/art.ts` in coloured-pencil hatching under a wobbling sepia pen, seeded by each item, so two swords of the same kind still differ in blade, guard and dye, with a pencil halo in the rarity's colour. Heroes and townsfolk change expression with what happens to them: a smile at rest, focus while casting, a wince when struck, joy at a level or a legendary, worry at low health.
 
 ## What is generated
 

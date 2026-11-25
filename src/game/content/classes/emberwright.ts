@@ -19,7 +19,7 @@ export const EMBERWRIGHT: ClassDef = {
     {
       id: 'spark', name: 'Spark', category: 'basic', tags: ['basic', 'ranged', 'projectile', 'storm'], element: 'storm', icon: 'spark',
       behavior: 'projectile', anim: 'cast', targeting: 'direction', range: 14,
-      params: { coef: 0.6, generate: 6, castTime: 0.32, speed: 24, radius: 0.35, life: 0.7, count: 1, spread: 0.18, pierce: 0 },
+      params: { coef: 1.0, generate: 10, castTime: 0.6, speed: 24, radius: 0.35, life: 0.7, count: 1, spread: 0.18, pierce: 0 },
       desc: 'Flick a spark that bites the first enemy for {coef} weapon damage. Generates {generate} Focus.',
       enhance: { desc: 'Spark passes through one more enemy.', effects: [param('spark', 'pierce', 'add', 1)] },
       upgrades: [
@@ -30,7 +30,7 @@ export const EMBERWRIGHT: ClassDef = {
     {
       id: 'frostshard', name: 'Frost Shard', category: 'basic', tags: ['basic', 'ranged', 'projectile', 'frost'], element: 'frost', icon: 'shard',
       behavior: 'projectile', anim: 'cast', targeting: 'direction', range: 14,
-      params: { coef: 0.62, generate: 6, castTime: 0.36, speed: 18, radius: 0.4, life: 0.8, count: 1, spread: 0.15, pierce: 0, chill: 0.22 },
+      params: { coef: 1.02, generate: 10, castTime: 0.64, speed: 18, radius: 0.4, life: 0.8, count: 1, spread: 0.15, pierce: 0, chill: 0.22 },
       desc: 'A splinter of ice for {coef} weapon damage that Chills by {chill}. Enough Chill freezes. Generates {generate} Focus.',
       enhance: { desc: 'Chills by 15% more.', effects: [param('frostshard', 'chill', 'add', 0.15)] },
       upgrades: [
@@ -41,7 +41,7 @@ export const EMBERWRIGHT: ClassDef = {
     {
       id: 'emberbolt', name: 'Ember Bolt', category: 'core', tags: ['core', 'ranged', 'projectile', 'fire'], element: 'fire', icon: 'bolt',
       behavior: 'projectile', anim: 'cast', targeting: 'direction', range: 14,
-      params: { coef: 1.45, cost: 18, castTime: 0.38, speed: 17, radius: 0.5, life: 0.85, count: 1, spread: 0.13, pierce: 0, explode: 1.6, explodeCoef: 0.5, burn: 0.4, burnDur: 3 },
+      params: { coef: 2.3, cost: 26, castTime: 0.72, speed: 17, radius: 0.5, life: 0.85, count: 1, spread: 0.13, pierce: 0, explode: 1.6, explodeCoef: 0.5, burn: 0.4, burnDur: 3 },
       desc: 'Hurl a mote of fire that bursts on the first enemy for {coef} weapon damage, splashing {explodeCoef} around it and setting enemies Burning.',
       enhance: { desc: 'The burst is 30% wider.', effects: [param('emberbolt', 'explode', 'mul', 1.3)] },
       upgrades: [
@@ -52,7 +52,7 @@ export const EMBERWRIGHT: ClassDef = {
     {
       id: 'icelance', name: 'Ice Lance', category: 'core', tags: ['core', 'ranged', 'projectile', 'frost'], element: 'frost', icon: 'lance',
       behavior: 'projectile', anim: 'cast', targeting: 'direction', range: 16,
-      params: { coef: 1.35, cost: 20, castTime: 0.4, speed: 26, radius: 0.45, life: 0.9, count: 1, spread: 0.2, pierce: 99, chill: 0.3 },
+      params: { coef: 2.15, cost: 28, castTime: 0.74, speed: 26, radius: 0.45, life: 0.9, count: 1, spread: 0.2, pierce: 99, chill: 0.3 },
       desc: 'A lance of ice that runs through every enemy in a line for {coef} weapon damage, Chilling by {chill}.',
       enhance: { desc: 'Deals 30% more damage (×) to Chilled enemies.', effects: [param('icelance', 'moreVsChilled', 'set', 0.3)] },
       upgrades: [
@@ -63,7 +63,7 @@ export const EMBERWRIGHT: ClassDef = {
     {
       id: 'chainlightning', name: 'Chain Lightning', category: 'core', tags: ['core', 'ranged', 'storm'], element: 'storm', icon: 'chain',
       behavior: 'chain', anim: 'cast', targeting: 'enemy', range: 11,
-      params: { coef: 1.1, cost: 22, castTime: 0.36, jumps: 4, jumpRange: 6, falloff: 0.9 },
+      params: { coef: 1.75, cost: 30, castTime: 0.7, jumps: 4, jumpRange: 6, falloff: 0.9 },
       desc: 'Lightning that strikes an enemy for {coef} weapon damage, then leaps to {jumps} more.',
       enhance: { desc: 'Leaps to 2 more enemies.', effects: [param('chainlightning', 'jumps', 'add', 2)] },
       upgrades: [

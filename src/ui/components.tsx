@@ -17,6 +17,23 @@ export const Icon = ({ svg, class: cls }: { svg: string; class?: string }) =>
 
 export const rarityColor = (r: Rarity): string => RARITY_COLORS[getGame().settings.colorVision][r];
 
+export function Painting({ paint, deps, class: cls }: { paint: (px: number) => HTMLCanvasElement; deps: string; class: string }) {
+  const ref = useRef<HTMLCanvasElement>(null);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const px = Math.max(24, Math.round((el.clientWidth || 64) * Math.min(3, window.devicePixelRatio || 1)));
+    const src = paint(px);
+    if (el.width !== src.width) el.width = src.width;
+    if (el.height !== src.height) el.height = src.height;
+    const ctx = el.getContext('2d');
+    if (!ctx) return;
+    ctx.clearRect(0, 0, el.width, el.height);
+    ctx.drawImage(src, 0, 0);
+  }, [deps]);
+  return <canvas ref={ref} class={cls} aria-hidden="true" />;
+}
+
 export function Panel(props: { id: PanelId; title: string; side?: string; wide?: boolean; children: ComponentChildren; actions?: ComponentChildren }) {
   const ref = useRef<HTMLElement>(null);
   useEffect(() => {
@@ -78,7 +95,7 @@ export function ItemTooltip({ item, compare = true, worn = false }: { item: Item
   return (
     <div class="itip" style={{ '--rc': rarityColor(item.rarity) } as JSX.CSSProperties}>
       <div class="itip-head">
-        <span class="itip-art" aria-hidden="true" dangerouslySetInnerHTML={{ __html: itemArt(item, g.settings.colorVision, 't') }} />
+        <Painting class="itip-art" deps={`${item.uid}|${item.rarity}|${g.settings.colorVision}`} paint={(px) => itemArt(item, g.settings.colorVision, px)} />
         <div>
           <div class="itip-name">{displayName(item)}</div>
           <div class="itip-type">{RARITY_INFO[item.rarity].name} {typeLine(item)}{base?.hands === 2 ? ' · two-handed' : ''}</div>
@@ -130,7 +147,7 @@ export function ItemCell(props: {
       onContextMenu={(e) => { e.preventDefault(); props.onUse?.(); }}
       {...tip}
     >
-      <span class="art" aria-hidden="true" dangerouslySetInnerHTML={{ __html: itemArt(item, getGame().settings.colorVision) }} />
+      <Painting class="art" deps={`${item.uid}|${item.rarity}|${getGame().settings.colorVision}`} paint={(px) => itemArt(item, getGame().settings.colorVision, px)} />
       {item.fresh && <span class="new" aria-hidden="true">✦</span>}
     </button>
   );

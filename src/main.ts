@@ -18,6 +18,7 @@ import { App } from './ui/App';
 import { watchTouch } from './ui/touch';
 import { startPadNav } from './ui/padnav';
 import type { Session } from './ui/screens';
+import { FACE } from './game/systems/faces';
 
 const canvas = document.getElementById('view') as HTMLCanvasElement;
 
@@ -53,7 +54,7 @@ try {
     game.look.fadeGoal = 1;
   };
 
-  let previewing = false;
+  let previewing = false, cheer = 0;
   const enter = (c: Character) => {
     previewing = false;
     game.camera.shift = 0;
@@ -95,6 +96,7 @@ try {
       const off = W >= 760 ? ((cardRight + W) / 2 - W / 2) / (W / 2) : 0;
       game.camera.shift = off * distance * Math.tan((17 * Math.PI) / 180) * (W / H);
       previewing = true;
+      cheer = 1.4;
     },
     endPreview() {
       if (!previewing || game.started) return;
@@ -123,7 +125,11 @@ try {
   titleView();
   game.bus.on('frame', (dt) => {
     if (game.started || !game.paused) return;
-    if (previewing) game.player.yaw = -game.camera.yaw + 0.5 * Math.sin(game.time * 0.5);
+    if (previewing) {
+      game.player.yaw = -game.camera.yaw + 0.5 * Math.sin(game.time * 0.5);
+      cheer = Math.max(0, cheer - dt);
+      game.player.face = cheer > 0 ? FACE.joy : FACE.content;
+    }
     else if (!game.reducedMotion) game.camera.goal.yaw += dt * 0.06;
   });
   game.bus.on('begin', () => document.body.classList.remove('titled'));

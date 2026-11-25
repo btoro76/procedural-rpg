@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { ui, getGame, closePanel, openPanel, closeAll } from './store';
-import { Choice, Icon, confirmThen } from './components';
+import { Choice, Icon, Painting, confirmThen } from './components';
 import { skillIcon } from './icons';
 import { classArt } from './art';
 import { bindingLabel } from './hud';
@@ -90,7 +90,7 @@ export function Create({ session }: { session: Session }) {
         <div class="classes" role="radiogroup" aria-label="Class">
           {CLASS_LIST.map((k) => (
             <button type="button" role="radio" aria-checked={k.id === cls} class={`class-card ${k.id === cls ? 'on' : ''}`} onClick={() => pick(k.id)}>
-              <span class="class-art" aria-hidden="true" dangerouslySetInnerHTML={{ __html: classArt(k.id) }} />
+              <Painting class="class-art" deps={k.id} paint={(px) => classArt(k.id, px)} />
               <strong>{k.name}</strong><small>{k.tagline}</small>
               <span class="class-skills">{k.start.map((id) => { const d = skillDef(id)!; return <Icon svg={skillIcon(d.icon, d.element)} />; })}</span>
             </button>

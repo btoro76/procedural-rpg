@@ -31,6 +31,7 @@ import { Discover } from './systems/discover';
 import { Stakes } from './systems/stakes';
 import { Zones } from './systems/zones';
 import { Vendors } from './systems/vendors';
+import { Faces } from './systems/faces';
 
 const HOLD_MAX = 0.14;
 const HOLD_RATE = 0.06;
@@ -100,6 +101,7 @@ export class Game {
   readonly zones: Zones;
   readonly vendors: Vendors;
   readonly playerSystem: PlayerSystem;
+  readonly faces: Faces;
   private readonly systems: System[];
 
   constructor(canvas: HTMLCanvasElement, o: GameOptions) {
@@ -136,9 +138,10 @@ export class Game {
     this.zones = new Zones(this);
     this.vendors = new Vendors(this);
     this.playerSystem = new PlayerSystem(this);
+    this.faces = new Faces(this);
     this.systems = [
       this.controls, this.playerSystem, new MonsterAI(this), this.hazards, this.skills, this.status, this.loot,
-      this.spawner, this.discover, this.zones, this.bounties, this.stakes, this.tutorial, this.fx,
+      this.spawner, this.discover, this.zones, this.bounties, this.stakes, this.tutorial, this.faces, this.fx,
     ];
 
     this.loadCharacter(o.char);

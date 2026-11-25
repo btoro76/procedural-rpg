@@ -48,6 +48,7 @@ export interface EntityBase {
   name: string; level: number;
   pose?: [number, number, number, number];
   marked?: boolean;
+  face?: number;
   tint?: Vec3 | null;
 }
 
