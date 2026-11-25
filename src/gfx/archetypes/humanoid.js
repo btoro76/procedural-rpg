@@ -7,7 +7,8 @@ registerArchetype({
 vec3 hHip, hChest, hHead, hHandL, hHandR, hFootL, hFootR, hBlade;
 float hDraw;
 float gearBit(float b) { return mod(floor(eSpare / b + 0.01), 2.0); }
-float faceOf() { return floor(eSpare / 8.0 + 0.01); }
+float faceOf() { return mod(floor(eSpare / 8.0 + 0.01), 64.0); }
+bool mounted() { return eSpare > 511.5; }
 bool robed() { return eExtra > 1.5 && eExtra < 2.5; }
 float hemY() { return robed() ? hHip.y - 0.3 : hHip.y - 0.11; }
 vec3 kneeOf(float side) { return hHip + vec3(0.09 * side, -0.04, 0.0); }
@@ -52,6 +53,20 @@ void entPose() {
   hHandL = hChest + vec3(-0.3 + 0.04 * run, -0.24 + 0.01 * idle + rise * max(-s, 0.0), -s * pump + 0.02);
   hHandR = hChest + vec3(0.3 - 0.03 * run, -0.24 + 0.01 * idle + rise * max(s, 0.0), s * pump * 0.7 + 0.02);
   hBlade = normalize(vec3(0.25, 0.85 - 0.2 * run, 0.45 - 0.5 * run));
+  if (mounted()) {
+    float gait = abs(sin(w)) * 0.045 * mv + 0.006 * idle;
+    float post = 0.035 * run * mv * max(sin(w * 2.0), 0.0);
+    hHip = vec3(0.0, 0.47 + gait + post, -0.02);
+    hChest = hHip + vec3(0.0, 0.27, 0.04 + 0.06 * mv);
+    hHead = hChest + vec3(0.0, 0.43, 0.02 + 0.03 * mv);
+    float swing = 0.025 * sin(w) * mv;
+    hFootL = vec3(-0.27, 0.06 - gait * 0.5, 0.12 + swing);
+    hFootR = vec3(0.27, 0.06 - gait * 0.5, 0.12 - swing);
+    float tug = 0.02 * sin(w * 2.0) * mv;
+    hHandL = hChest + vec3(-0.13, -0.17 + tug, 0.3);
+    hHandR = hChest + vec3(0.13, -0.17 + tug, 0.3);
+    hBlade = normalize(vec3(0.3, 0.8, 0.35));
+  }
   if (act > 0.5 && act < 1.5) {
     float wind = smoothstep(0.0, 0.22, at), cut = smoothstep(0.22, 0.5, at), rec = smoothstep(0.62, 1.0, at);
     float ang = mix(mix(0.4, 2.2, wind), -1.1, cut);
@@ -75,7 +90,7 @@ void entPose() {
     float k = 1.0 - at;
     hChest.z -= 0.08 * k; hHead.z -= 0.14 * k;
     hHandL.y += 0.1 * k; hHandR.y += 0.1 * k;
-  } else if (act > 3.5 && act < 4.5) {
+  } else if (act > 3.5 && act < 4.5 && !mounted()) {
     hHip = vec3(0.0, 0.4, 0.0);
     hChest = hHip + vec3(0.0, 0.24, 0.17);
     hHead = hChest + vec3(0.0, 0.4, 0.13);

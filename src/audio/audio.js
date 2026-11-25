@@ -3,7 +3,7 @@ const MAX_VOICES = { sfx: 24, chime: 16, music: 48, ambience: 16 };
 const HEARING = 30;
 const NEAR = 4;
 const REPEAT_GAP = 0.035;
-const REPEAT_GAPS = { step: 0.13, 'charge:dust': 0.1 };
+const REPEAT_GAPS = { step: 0.07, 'charge:dust': 0.1 };
 const MAX_STAGGER = 0.12;
 const TICK = 0.1;
 const LOOKAHEAD = 0.5;
@@ -73,9 +73,14 @@ const BEHAVIOR_SOUNDS = {
 const UI_SOUNDS = new Set(['ui:click', 'deny', 'trade']);
 
 const SOUNDS = {
-  step(k, { entity, water }) {
+  step(k, { entity, water, hoof }) {
     if (entity && entity.kind !== 'player') return;
     const v = rand(0.88, 1.14);
+    if (hoof && !water) {
+      k.noise({ freq: 900 * v, q: 1.6, attack: 0.002, decay: 0.07, gain: 0.05 });
+      k.tone({ type: 'triangle', freq: 210 * v, to: 120 * v, decay: 0.08, gain: 0.05 });
+      return;
+    }
     if (water) {
       k.noise({ freq: 1500 * v, to: 650 * v, q: 1.1, attack: 0.012, decay: 0.3, gain: 0.055 });
       k.tone({ freq: 380 * v, to: 620 * v, glide: 0.05, decay: 0.1, gain: 0.025 });
@@ -83,6 +88,14 @@ const SOUNDS = {
       k.noise({ filter: 'lowpass', freq: 620 * v, to: 260 * v, decay: 0.13, gain: 0.045 });
       k.tone({ freq: 92 * v, to: 58 * v, decay: 0.12, gain: 0.05 });
     }
+  },
+
+  mount(k, { on }) {
+    const v = rand(0.95, 1.05);
+    if (on) {
+      k.tone({ type: 'sawtooth', freq: 620 * v, to: 980 * v, glide: 0.18, attack: 0.03, hold: 0.12, decay: 0.45, gain: 0.025, cutoff: 1800, vibrato: { rate: 14, depth: 60 } });
+      k.noise({ filter: 'lowpass', freq: 500, to: 200, attack: 0.2, decay: 0.3, gain: 0.03 });
+    } else k.noise({ filter: 'lowpass', freq: 520, to: 240, decay: 0.18, gain: 0.06 });
   },
 
   swing(k, { heavy }) {

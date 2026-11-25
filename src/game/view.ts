@@ -4,6 +4,15 @@ import type { Game } from './game';
 import type { AnyEntity, Monster, Player } from './types';
 import { BASE } from './content/items';
 import type { Particle } from './fx';
+import { SADDLE } from './systems/player';
+
+const HORSE_SCALE = 0.9;
+const COATS: [number, number, number][][] = [
+  [[184, 112, 64], [70, 108, 150], [84, 52, 40]],
+  [[214, 178, 122], [176, 64, 48], [120, 86, 60]],
+  [[190, 184, 176], [94, 140, 78], [96, 92, 100]],
+  [[160, 96, 58], [196, 148, 52], [62, 48, 44]],
+];
 
 const DRAW_RANGE = 78;
 
@@ -72,13 +81,31 @@ export class View {
       d[o + 15] = e.kind === 'drop' ? 0 : e.move;
       d[o + 16] = c[1][0]; d[o + 17] = c[1][1]; d[o + 18] = c[1][2]; d[o + 19] = e.extra;
       d[o + 20] = c[2][0]; d[o + 21] = c[2][1]; d[o + 22] = c[2][2]; d[o + 23] = (e.kind === 'player' ? gearFlags(e) : 0) + 8 * (e.face ?? 0);
+      if (e === p && p.mounted) {
+        d[o + 1] += SADDLE * e.grow; d[o + 23] += 512;
+        const hb = this.batch('horse');
+        if ((hb.count + 1) * INSTANCE_FLOATS > hb.data.length) {
+          const bigger = new Float32Array(hb.data.length * 2);
+          bigger.set(hb.data);
+          hb.data = bigger;
+        }
+        const h = hb.data, q = hb.count++ * INSTANCE_FLOATS, coat = COATS[Math.floor(e.seed * 997) % COATS.length];
+        h.set(d.subarray(o, o + INSTANCE_FLOATS), q);
+        h[q + 1] = e.y + e.lift; h[q + 3] = HORSE_SCALE * e.grow;
+        h[q + 6] = 0; h[q + 7] = 0; h[q + 8] = e.seed + 0.37;
+        h[q + 12] = coat[0][0] / 255; h[q + 13] = coat[0][1] / 255; h[q + 14] = coat[0][2] / 255;
+        h[q + 16] = coat[1][0] / 255; h[q + 17] = coat[1][1] / 255; h[q + 18] = coat[1][2] / 255; h[q + 19] = 0;
+        h[q + 20] = coat[2][0] / 255; h[q + 21] = coat[2][1] / 255; h[q + 22] = coat[2][2] / 255; h[q + 23] = 0;
+      }
       if (e.kind !== 'drop' && e.kind !== 'missile' && dist < 45) casters.push({ e, dist });
     }
 
     casters.sort((a, b) => a.dist - b.dist);
     f.casterCount = Math.min(casters.length, RENDER.MAX_CASTERS);
     for (let i = 0; i < f.casterCount; i++) {
-      const e = casters[i].e, r = Math.max(e.radius, e.height * 0.33) * e.scale * e.grow;
+      const e = casters[i].e;
+      if (e === p && p.mounted) { const r = 0.72 * e.grow; f.casters.set([e.x, e.y + 0.85 + e.lift, e.z, r], i * 4); continue; }
+      const r = Math.max(e.radius, e.height * 0.33) * e.scale * e.grow;
       f.casters.set([e.x, e.y + r * 1.05 + e.lift + (e.archetype === 'wisp' ? 0.6 : 0), e.z, r], i * 4);
     }
 

@@ -14,6 +14,7 @@ export const ACTIONS = {
   moveRight: { label: 'Walk right', group: 'Movement' },
   evade: { label: 'Evade', group: 'Movement' },
   interact: { label: 'Attack nearest / talk / use', group: 'Movement' },
+  mount: { label: 'Mount / dismount the horse', group: 'Movement' },
 
   slot1: { label: 'Skill slot 1 (primary)', group: 'Combat', mouse: true },
   slot2: { label: 'Skill slot 2', group: 'Combat', mouse: true },
@@ -55,6 +56,7 @@ export const DEFAULT_KEYS: KeyBindings = {
   moveRight: ['KeyD', 'ArrowRight'],
   evade: ['Space', null],
   interact: ['KeyF', null],
+  mount: ['KeyH', null],
   slot1: ['Mouse0', null],
   slot2: ['Mouse2', null],
   slot3: ['Digit1', null],
@@ -84,6 +86,7 @@ export const DEFAULT_PAD: PadBindings = {
   moveUp: null, moveDown: null, moveLeft: null, moveRight: null,
   evade: 'LT',
   interact: 'A',
+  mount: 'LS',
   slot1: null,
   slot2: 'X',
   slot3: 'Y',

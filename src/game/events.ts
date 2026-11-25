@@ -9,7 +9,8 @@ export interface GameEvents {
   begin: void;
   'character:loaded': Player;
 
-  step: { entity: AnyEntity; water: boolean };
+  step: { entity: AnyEntity; water: boolean; hoof?: boolean };
+  mount: { on: boolean };
   moveclick: XYZ;
   dash: XYZ;
   evade: XYZ;

@@ -75,5 +75,6 @@ export const ACT_ICONS = {
   attack: svg(`<path d="M14 23L29 6h5v5L17 26z" fill="${PAPER}"/><path d="M17.5 22.5L30 10" stroke-width="1.4"/><path d="M10 19l11 11" stroke-width="3"/><path d="M13.5 26.5L8 32" stroke="#d64634" stroke-width="4"/><circle cx="6.5" cy="33.5" r="2" fill="#e2b034"/>`, 'i-attack'),
   talk: svg(`<path d="M6 8h28v18H20l-8 7v-7H6z" fill="${PAPER}"/><path d="M12 14.5h16M12 20h10" stroke-width="1.6"/>`, 'i-talk'),
   next: svg(`<circle cx="20" cy="20" r="4.5" fill="#d64634"/><path d="M8 17a12.5 12.5 0 0 1 22-6M32 23a12.5 12.5 0 0 1-22 6"/><path d="M31 4v8h-8M9 36v-8h8"/>`),
+  horse: svg(`<path d="M8 33V21c0-6 5-10 11-10l6-5 2 5c4 2 6 6 6 10l-4 1-3-3-3 3v11h-4V24l-7 2v7z" fill="#b08054"/><path d="M19 11c-2 3-3 6-3 9" stroke="#3a2e28" stroke-width="2.6"/><circle cx="26" cy="15" r="1.3" fill="#3a2e28"/>`),
   evade: svg(`<path d="M6 28c8 2 16-2 22-12" stroke-dasharray="3 3"/><path d="M24 10l8 4-4 8" stroke-width="2.6"/><circle cx="10" cy="26" r="4" fill="#88b4d8"/>`),
 };

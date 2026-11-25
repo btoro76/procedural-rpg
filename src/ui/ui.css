@@ -280,7 +280,7 @@ body.touch .slot.s1 { right: calc(27.2 * var(--u)); bottom: calc(20.7 * var(--u)
 body.touch .slot.s2 { right: calc(15.95 * var(--u)); bottom: calc(28.9 * var(--u)); }
 body.touch .slot.s3 { right: calc(2.05 * var(--u)); bottom: calc(28.9 * var(--u)); }
 body.touch .slot.next { right: calc(44 * var(--u)); bottom: calc(19.4 * var(--u)); width: calc(11 * var(--u)); height: calc(11 * var(--u)); }
-body.touch .slot.d0, body.touch .slot.d1 { width: calc(11.5 * var(--u)); height: calc(11.5 * var(--u)); }
+body.touch .slot.d0, body.touch .slot.d1, body.touch .slot.d2 { width: calc(11.5 * var(--u)); height: calc(11.5 * var(--u)); }
 
 body.touch .fl { font-size: 22px; -webkit-text-stroke-width: 3px; }
 body.touch .fl.crit { font-size: 30px; }
@@ -326,6 +326,7 @@ body.touch .btn { min-height: 44px; padding: 8px 16px 10px; }
   body.touch #menu button { width: calc(11 * var(--u)); height: calc(11 * var(--u)); }
   body.touch .slot.d0 { right: calc(17.5 * var(--u)); bottom: calc(46.5 * var(--u)); }
   body.touch .slot.d1 { right: calc(3 * var(--u)); bottom: calc(46.5 * var(--u)); }
+  body.touch .slot.d2 { right: calc(3 * var(--u)); bottom: calc(60 * var(--u)); }
 
   body.touch #stick { left: 0; bottom: var(--sb); width: calc(100vw - 56 * var(--u)); height: calc(44 * var(--u)); }
   body.touch #stick .base { left: calc(50% - 13.5 * var(--u)); top: calc(50% - 13.5 * var(--u)); }
@@ -358,6 +359,7 @@ body.touch .btn { min-height: 44px; padding: 8px 16px 10px; }
   body.touch #stick .base { left: calc(var(--sl) + 9 * var(--u)); bottom: calc(var(--sb) + 7 * var(--u)); }
   body.touch .slot.d0 { right: calc(60.5 * var(--u)); bottom: calc(3 * var(--u)); }
   body.touch .slot.d1 { right: calc(46 * var(--u)); bottom: calc(3 * var(--u)); }
+  body.touch .slot.d2 { right: calc(75 * var(--u)); bottom: calc(3 * var(--u)); }
 }
 @media (orientation: landscape) and (max-width: 739px) {
   body.touch #target { width: 176px; }

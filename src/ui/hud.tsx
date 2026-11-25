@@ -192,6 +192,7 @@ function Hotbar() {
       <div class="sep" />
       <Slot cls="d0" icon={glyph('flask', '#c63e3a')} keyLabel={bindingLabel('potion')} title="Drink a tonic" onUse={() => g.playerSystem.drink()} count={c.potions} cooldown={p.potionCd / 1.2} state={c.potions ? '' : 'empty'} />
       <Slot cls="d1" icon={ACT_ICONS.evade} keyLabel={bindingLabel('evade')} title="Evade" onUse={() => g.skills.evade(p.intent.moveX, p.intent.moveZ)} cooldown={p.evadeCd / 4} />
+      <Slot cls={`d2 ${p.mounted ? 'on' : ''}`} icon={ACT_ICONS.horse} keyLabel={bindingLabel('mount')} title={p.mounted ? 'Dismount' : 'Mount the horse'} onUse={() => g.playerSystem.toggleMount()} state={g.world === g.overworld ? '' : 'dry'} />
       {g.touch && <ActButton talk={talk} idle={!act} />}
       {g.touch && <Slot cls="next" icon={ACT_ICONS.next} keyLabel="Tab" title="Next target" onUse={() => g.controls.cycleTarget()} />}
     </section>

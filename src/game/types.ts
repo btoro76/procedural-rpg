@@ -106,6 +106,8 @@ export interface Player extends Actor {
   respawn: number;
   dirty: boolean;
   standStill: boolean;
+  mounted: boolean;
+  rideWanted: boolean;
 }
 
 export interface AIState {

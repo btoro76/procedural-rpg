@@ -98,6 +98,7 @@ export class Controls {
       if (input.actionHit(SLOT_ACTIONS[i])) this.useSlot(i);
     }
     if (input.actionHit('potion')) g.playerSystem.drink();
+    if (input.actionHit('mount')) g.playerSystem.toggleMount();
     if (input.actionHit('evade')) {
       const toward = it.moveX || it.moveZ ? [it.moveX, it.moveZ] : this.ground ? [this.ground.x - p.x, this.ground.z - p.z] : null;
       g.skills.evade(toward?.[0], toward?.[1]);

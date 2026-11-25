@@ -10,6 +10,9 @@ import { compileBuild, condsChanged } from '../rules/build';
 import { baseEntity, yawFromDir } from '../entities';
 
 const CADENCE = 10.4;
+export const HORSE_SPEED = 1.7;
+export const SADDLE = 0.62;
+const STRIDE = 0.5;
 const out = { x: 0, z: 0 };
 
 export function makePlayer(game: Game, char: Character): Player {
@@ -33,6 +36,7 @@ export function makePlayer(game: Game, char: Character): Player {
     intent: { moveX: 0, moveZ: 0 }, target: null, pursue: false, moveTo: null, queued: null,
     cast: null, cooldowns: {}, dash: null,
     calm: 10, potionCd: 0, evadeCd: 0, safe: true, respawn: 0, dirty: false, standStill: false,
+    mounted: true, rideWanted: true,
   };
   p.maxHp = build.derived.maxLife;
   p.hp = Math.min(p.maxHp, char.hp);
@@ -68,6 +72,24 @@ export class PlayerSystem {
     this.game.bus.emit('build:changed');
   }
 
+  toggleMount(): void {
+    const g = this.game, p = g.player;
+    if (p.dead) return;
+    if (g.world !== g.overworld) { g.bus.emit('log', { text: 'No room for the horse down here.' }); g.bus.emit('deny'); return; }
+    if (p.dash) return;
+    p.rideWanted = !p.rideWanted;
+    this.setMounted(p.rideWanted);
+  }
+
+  private setMounted(on: boolean): void {
+    const g = this.game, p = g.player;
+    if (p.mounted === on) return;
+    p.mounted = on;
+    p.radius = on ? 0.5 : 0.36;
+    g.bus.emit('mount', { on });
+    g.fx.spawn('ring', p.x, p.y + 0.08, p.z, { size: 1.8, life: 0.5, color: [0.69, 0.5, 0.33], ground: true, alpha: 0.8 });
+  }
+
   drink(): boolean {
     const g = this.game, p = g.player, c = p.char;
     if (p.dead || p.potionCd > 0) return false;
@@ -95,9 +117,13 @@ export class PlayerSystem {
       if (p.actionT >= 1) { p.action = 0; p.actionT = 0; }
     }
 
+    const outdoors = w === g.overworld;
+    if (p.mounted && !outdoors) this.setMounted(false);
+    else if (!p.mounted && outdoors && p.rideWanted && !p.dash) this.setMounted(true);
+
     const d = p.build.derived;
     const wet = w.waterDepth(p.x, p.z) > 0.18;
-    const speed = GAME.PLAYER_SPEED * d.moveSpeed * (wet ? 0.62 : 1);
+    const speed = GAME.PLAYER_SPEED * d.moveSpeed * (wet ? 0.62 : 1) * (p.mounted ? HORSE_SPEED : 1);
     const held = g.status.stopped(p);
     let dx = 0, dz = 0, want = false;
     const tgt = p.target && !p.target.gone && !p.target.dead ? p.target : (p.target = null);
@@ -137,12 +163,13 @@ export class PlayerSystem {
       if (!p.dash) {
         const pace = moved / Math.max(dt, 1e-4);
         const before = p.walk;
-        p.walk += moved * Math.min(4.5, Math.max(1.9, CADENCE / Math.max(pace, 0.1)));
-        if (Math.floor(before / Math.PI) !== Math.floor(p.walk / Math.PI)) g.bus.emit('step', { entity: p, water: wet });
+        p.walk += moved * Math.min(4.5, Math.max(1.9, CADENCE / Math.max(pace, 0.1))) * (p.mounted ? STRIDE : 1);
+        const beat = p.mounted ? Math.PI * 0.5 : Math.PI;
+        if (Math.floor(before / beat) !== Math.floor(p.walk / beat)) g.bus.emit('step', { entity: p, water: wet, hoof: p.mounted });
       }
     }
     const movedNow = Math.hypot(p.x - px, p.z - pz) / Math.max(dt, 1e-4);
-    p.move = damp(p.move, Math.min(1, movedNow / (GAME.PLAYER_SPEED * 0.8)), 14, dt);
+    p.move = damp(p.move, Math.min(1, movedNow / (GAME.PLAYER_SPEED * (p.mounted ? 1.2 : 0.8))), 14, dt);
     if (!p.dash?.leap) p.y = damp(p.y, w.surface(p.x, p.z) - (wet ? 0.12 : 0), 22, dt);
 
     if (tgt && !held) {
