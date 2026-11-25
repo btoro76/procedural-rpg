@@ -14,6 +14,7 @@ import { Minimap } from './passes/minimap.js';
 import './archetypes/humanoid.js';
 import './archetypes/critters.js';
 import './archetypes/horse.js';
+import './archetypes/poodle.js';
 import './archetypes/missiles.js';
 
 export class Renderer {

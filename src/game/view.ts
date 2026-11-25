@@ -50,7 +50,8 @@ export class View {
   build(time: number) {
     const g = this.game, p = g.player, f = this.frame, cam = g.camera;
     for (const b of this.batches.values()) b.count = 0;
-    const ents = g.entities.list;
+    const dog = g.companion.dog;
+    const ents: AnyEntity[] = dog && !dog.away ? [...g.entities.list, dog as unknown as AnyEntity] : g.entities.list;
     const casters: { e: AnyEntity; dist: number }[] = [];
     const tick = Math.floor(time * 12);
     const newDrawing = this.smooth || tick !== this.tick;

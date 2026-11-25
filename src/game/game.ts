@@ -23,6 +23,7 @@ import { Combat } from './systems/combat';
 import { Skills } from './systems/skills';
 import { StatusSystem } from './systems/status';
 import { Spawner } from './systems/spawner';
+import { Companion } from './systems/companion';
 import { Loot } from './systems/loot';
 import { Bounties } from './systems/bounties';
 import { Tutorial } from './systems/tutorial';
@@ -93,6 +94,7 @@ export class Game {
   readonly bounties: Bounties;
   readonly controls: Controls;
   readonly spawner: Spawner;
+  readonly companion: Companion;
   readonly view: View;
   readonly tutorial: Tutorial;
   readonly hazards: Hazards;
@@ -138,9 +140,10 @@ export class Game {
     this.zones = new Zones(this);
     this.vendors = new Vendors(this);
     this.playerSystem = new PlayerSystem(this);
+    this.companion = new Companion(this);
     this.faces = new Faces(this);
     this.systems = [
-      this.controls, this.playerSystem, new MonsterAI(this), this.hazards, this.skills, this.status, this.loot,
+      this.controls, this.playerSystem, this.companion, new MonsterAI(this), this.hazards, this.skills, this.status, this.loot,
       this.spawner, this.discover, this.zones, this.bounties, this.stakes, this.tutorial, this.faces, this.fx,
     ];
 

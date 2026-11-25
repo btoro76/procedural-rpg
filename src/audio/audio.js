@@ -98,6 +98,22 @@ const SOUNDS = {
     } else k.noise({ filter: 'lowpass', freq: 520, to: 240, decay: 0.18, gain: 0.06 });
   },
 
+  bark(k, { growl }) {
+    const v = rand(0.94, 1.06);
+    if (growl) {
+      k.tone({ type: 'sawtooth', freq: 95 * v, to: 80 * v, attack: 0.04, hold: 0.25, decay: 0.2, gain: 0.03, cutoff: 600, vibrato: { rate: 22, depth: 9 } });
+      return;
+    }
+    for (const t of [0, 0.17]) {
+      k.noise({ filter: 'bandpass', freq: 700 * v, q: 1.4, attack: 0.005, decay: 0.09, gain: 0.07, at: t });
+      k.tone({ type: 'square', freq: 330 * v, to: 220 * v, attack: 0.005, decay: 0.1, gain: 0.025, cutoff: 1400, at: t });
+    }
+  },
+
+  yelp(k) {
+    k.tone({ type: 'triangle', freq: 1100, to: 600, glide: 0.25, attack: 0.01, decay: 0.3, gain: 0.04 });
+  },
+
   swing(k, { heavy }) {
     const v = rand(0.92, 1.1);
     if (heavy) {

@@ -45,6 +45,11 @@ export class MonsterAI {
       const toP = Math.hypot(p.x - m.x, p.z - m.z);
       const fromHome = Math.hypot(m.x - ai.hx, m.z - ai.hz);
       const fair = !p.dead && !p.safe;
+      const dog = g.companion.active();
+      if (ai.dog && !dog) ai.dog = false;
+      const onDog = !!(ai.dog && dog);
+      const tx = onDog ? dog!.x : p.x, tz = onDog ? dog!.z : p.z;
+      const toT = onDog ? Math.hypot(tx - m.x, tz - m.z) : toP;
       this.affixes(m, dt, toP);
 
       if (held) {
@@ -72,28 +77,31 @@ export class MonsterAI {
           else { dx = (ai.gx - m.x) / d * speed * 0.4; dz = (ai.gz - m.z) / d * speed * 0.4; }
         }
         const notice = def.aggro > 0 && toP < def.aggro * (m.elite ? 1.3 : 1) * (1 + NIGHT_AGGRO * night) * (m.resident ? 1.6 : 1);
-        if (fair && !m.quarry && (notice || ai.provoked)) { ai.state = 'chase'; ai.target = p; g.bus.emit('monster:alert', m); }
+        if (fair && !m.quarry && (notice || ai.provoked)) {
+          ai.state = 'chase'; ai.target = p; g.bus.emit('monster:alert', m);
+          if (dog && !m.elite && Math.hypot(dog.x - m.x, dog.z - m.z) < toP && g.rng.chance(0.35)) ai.dog = true;
+        }
       } else if (ai.state === 'chase') {
         const reach = def.range + m.radius * 0.5;
         if (!fair || fromHome > leash) { ai.state = 'home'; ai.provoked = false; }
-        else if (def.keep && toP < def.keep[1]) {
-          const away = toP < def.keep[0] ? -0.75 : 0, side = (m.id % 2 ? 1 : -1) * 0.35;
-          dx = ((p.x - m.x) * away - (p.z - m.z) * side) / toP * speed;
-          dz = ((p.z - m.z) * away + (p.x - m.x) * side) / toP * speed;
+        else if (def.keep && toT < def.keep[1]) {
+          const away = toT < def.keep[0] ? -0.75 : 0, side = (m.id % 2 ? 1 : -1) * 0.35;
+          dx = ((tx - m.x) * away - (tz - m.z) * side) / toT * speed;
+          dz = ((tz - m.z) * away + (tx - m.x) * side) / toT * speed;
         }
-        else if (toP > reach * 0.9) { dx = (p.x - m.x) / toP * speed; dz = (p.z - m.z) / toP * speed; }
-        if (sp && ai.state === 'chase' && ai.scd <= 0 && toP >= sp.min && toP <= sp.max && (!sp.below || m.hp < m.maxHp * (sp.below as number))) {
+        else if (toT > reach * 0.9) { dx = (tx - m.x) / toT * speed; dz = (tz - m.z) / toT * speed; }
+        if (sp && !onDog && ai.state === 'chase' && ai.scd <= 0 && toP >= sp.min && toP <= sp.max && (!sp.below || m.hp < m.maxHp * (sp.below as number))) {
           ai.state = 'special';
           ai.sp = SPECIALS[sp.kind].begin(g, m, sp);
           g.bus.emit('monster:special', m);
-        } else if (toP <= reach && ai.cd <= 0 && ai.state === 'chase') {
+        } else if (toT <= reach && ai.cd <= 0 && ai.state === 'chase') {
           ai.state = 'attack'; ai.struck = false;
           m.action = 1; m.actionT = 0; m.actionDur = def.attackTime * tele;
           g.bus.emit('telegraph', { x: m.x, y: m.y, z: m.z, r: def.range + m.radius + 0.4, t: def.attackTime * tele * HIT_AT });
         }
-        m.yaw = dampAngle(m.yaw, yawFromDir(p.x - m.x, p.z - m.z), 9, dt);
+        m.yaw = dampAngle(m.yaw, yawFromDir(tx - m.x, tz - m.z), 9, dt);
       } else if (ai.state === 'attack') {
-        if (!ai.struck && m.actionT >= HIT_AT) { ai.struck = true; g.combat.maul(m); g.bus.emit('monster:strike', m); }
+        if (!ai.struck && m.actionT >= HIT_AT) { ai.struck = true; if (onDog) g.companion.hurt(m); else g.combat.maul(m); g.bus.emit('monster:strike', m); }
         if (m.action !== 1) { ai.state = 'chase'; ai.cd = def.cooldown * aff.cd * (0.8 + g.rng.next() * 0.4); }
       } else if (ai.state === 'special' && sp) {
         const mv = SPECIALS[sp.kind].update(g, m, sp, ai.sp, dt);

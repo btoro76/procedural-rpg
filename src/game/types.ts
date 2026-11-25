@@ -121,6 +121,7 @@ export interface AIState {
   pushX: number; pushZ: number;
   struck: boolean;
   stun: number;
+  dog?: boolean;
   sp?: unknown;
   affixT?: number;
   phase?: number;

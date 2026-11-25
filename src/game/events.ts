@@ -11,6 +11,8 @@ export interface GameEvents {
 
   step: { entity: AnyEntity; water: boolean; hoof?: boolean };
   mount: { on: boolean };
+  bark: { growl: boolean };
+  yelp: void;
   moveclick: XYZ;
   dash: XYZ;
   evade: XYZ;
