@@ -19,7 +19,7 @@ export function placeName(i, j, seed) {
 export function createSites(seed, naturalHeight, biomeIdAt) {
   const cache = new Map();
 
-  const MARKET = 5;
+  const MARKET = 6;
   function marketAt(i, j) {
     const I = Math.floor((i + 2) / MARKET), J = Math.floor((j + 2) / MARKET);
     if (I === 0 && J === 0) return false;
@@ -36,7 +36,7 @@ export function createSites(seed, naturalHeight, biomeIdAt) {
     let kind = null;
     if (i === 0 && j === 0) kind = 'town';
     else if (marketAt(i, j)) kind = 'market';
-    else if (hash01(i, j, seed + 501) < 0.82) {
+    else if (hash01(i, j, seed + 501) < 0.62) {
       const pool = [...kinds].filter(([id, k]) => id !== 'town' && id !== 'market' && (!k.suits || k.suits.includes(biome)));
       let roll = hash01(i, j, seed + 503) * pool.reduce((n, [, k]) => n + k.weight, 0);
       for (const [id, k] of pool) { roll -= k.weight; if (roll <= 0) { kind = id; break; } }

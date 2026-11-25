@@ -108,6 +108,8 @@ export interface Player extends Actor {
   standStill: boolean;
   mounted: boolean;
   rideWanted: boolean;
+  thrownT: number;
+  rideYaw: number;
 }
 
 export interface AIState {
@@ -139,6 +141,7 @@ export interface Monster extends Actor {
   resident?: boolean;
   boss?: boolean;
   calmT?: number;
+  quarry?: boolean;
 }
 
 export interface Npc extends EntityBase {

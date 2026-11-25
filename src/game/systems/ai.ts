@@ -9,6 +9,7 @@ import { DIFFICULTY } from '../content/monsters';
 const LEASH = 24, HIT_AT = 0.5;
 const out = { x: 0, z: 0 };
 const NIGHT_AGGRO = 0.45;
+const QUARRY_SPEED = 7.2, QUARRY_SHY = 16;
 
 export class MonsterAI {
   private readonly game: Game;
@@ -48,6 +49,12 @@ export class MonsterAI {
 
       if (held) {
         if (ai.state === 'special' || ai.state === 'attack') { ai.state = 'chase'; ai.sp = undefined; m.guard = false; m.lift = 0; m.action = 0; }
+      } else if (m.quarry && toP < QUARRY_SHY && !p.dead) {
+        ai.state = 'idle'; ai.going = false; ai.timer = 1.5;
+        const jink = 0.55 * Math.sin(g.time * 1.4 + m.id);
+        const ax = (m.x - p.x) / toP, az = (m.z - p.z) / toP, c = Math.cos(jink), s = Math.sin(jink);
+        dx = (ax * c - az * s) * QUARRY_SPEED; dz = (ax * s + az * c) * QUARRY_SPEED;
+        ai.hx = m.x; ai.hz = m.z;
       } else if (ai.stun > 0) {
         ai.stun -= dt;
       } else if (ai.state === 'idle') {
@@ -65,7 +72,7 @@ export class MonsterAI {
           else { dx = (ai.gx - m.x) / d * speed * 0.4; dz = (ai.gz - m.z) / d * speed * 0.4; }
         }
         const notice = def.aggro > 0 && toP < def.aggro * (m.elite ? 1.3 : 1) * (1 + NIGHT_AGGRO * night) * (m.resident ? 1.6 : 1);
-        if (fair && (notice || ai.provoked)) { ai.state = 'chase'; ai.target = p; g.bus.emit('monster:alert', m); }
+        if (fair && !m.quarry && (notice || ai.provoked)) { ai.state = 'chase'; ai.target = p; g.bus.emit('monster:alert', m); }
       } else if (ai.state === 'chase') {
         const reach = def.range + m.radius * 0.5;
         if (!fair || fromHome > leash) { ai.state = 'home'; ai.provoked = false; }

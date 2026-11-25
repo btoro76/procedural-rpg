@@ -181,6 +181,7 @@ export class Combat {
       if (dot) return void (p.hp <= 0 && this.fall(p));
       const heavy = amount >= p.maxHp * 0.08;
       if (heavy) g.hold(HOLD.taken);
+      if (p.mounted && amount >= p.maxHp * 0.1) g.playerSystem.thrown(amount / p.maxHp);
       g.shake(heavy ? 0.5 : 0.25);
       g.rumble(heavy ? 0.7 : 0.35, heavy ? 160 : 80);
       g.look.hurt = 1;
@@ -222,6 +223,7 @@ export class Combat {
     if (d.lifeOnKill) this.healHero(d.lifeOnKill, true);
     if (d.resourceOnKill) this.gain(d.resourceOnKill, false);
     if (!m.practice) g.loot.dropFrom(m);
+    if (m.quarry) { g.loot.chest(m.x, m.z, m.level); g.bus.emit('log', { text: `You ran down the <em>${m.name}</em>.` }); }
     this.grantXp(gained);
     g.bounties.onKill(m);
     g.zones.onKill(m);

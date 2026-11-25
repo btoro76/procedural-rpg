@@ -24,10 +24,11 @@ export class Spawner {
   private readonly game: Game;
   private timer = 0;
   private npcSites = new Set<string>();
+  private quarryT = 40;
 
   constructor(game: Game) { this.game = game; }
 
-  reset(): void { this.timer = 0; this.npcSites.clear(); }
+  reset(): void { this.timer = 0; this.npcSites.clear(); this.quarryT = 40; }
 
   update(dt: number): void {
     const g = this.game, p = g.player;
@@ -37,7 +38,10 @@ export class Spawner {
 
     if (g.world !== g.overworld) { g.monsters = g.monsters.filter((m) => !m.gone); return; }
     for (const m of g.monsters) {
-      if (!m.dead && Math.hypot(m.x - p.x, m.z - p.z) > DESPAWN && m.ai.state !== 'chase') m.gone = true;
+      if (!m.dead && Math.hypot(m.x - p.x, m.z - p.z) > DESPAWN && m.ai.state !== 'chase') {
+        if (m.quarry) g.bus.emit('log', { text: `The <em>${m.name}</em> got away.` });
+        m.gone = true;
+      }
     }
     g.monsters = g.monsters.filter((m) => !m.gone);
 
@@ -53,6 +57,20 @@ export class Spawner {
       for (const n of site.npcs ?? []) this.spawnNpc(n, site);
     }
     for (const site of g.world.sites.inRange(p.x, p.z, 400)) if (site.denStocked && Math.hypot(site.x - p.x, site.z - p.z) > 200) site.denStocked = false;
+
+    this.quarryT -= 0.35;
+    if (this.quarryT <= 0 && !g.paused && !p.safe && !g.monsters.some((m) => m.quarry && !m.dead)) {
+      this.quarryT = 70 + g.rng.next() * 60;
+      const qa = g.rng.angle(), qr = 28 + g.rng.next() * 12;
+      const qx = p.x + Math.cos(qa) * qr, qz = p.z + Math.sin(qa) * qr;
+      if (this.clear(qx, qz)) {
+        const qid = g.rng.weighted(g.world.biome(qx, qz).monsters as [string, number][]);
+        const def = MONSTERS[qid] ?? MONSTERS.sproutling;
+        const q = this.spawnMonster(qid, qx, qz, Math.max(1, levelAt(Math.hypot(qx, qz)) + 1), { name: `Gilded ${def.name}`, hide: [226, 176, 52] });
+        q.quarry = true;
+        g.bus.emit('log', { text: `A <em>Gilded ${def.name}</em> bolts nearby. Run it down!` });
+      } else this.quarryT = 3;
+    }
 
     if (g.monsters.length >= GAME.MAX_MONSTERS || g.paused) return;
     const a = g.rng.angle(), r = NEAR + g.rng.next() * (FAR - NEAR);

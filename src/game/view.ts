@@ -91,7 +91,7 @@ export class View {
         }
         const h = hb.data, q = hb.count++ * INSTANCE_FLOATS, coat = COATS[Math.floor(e.seed * 997) % COATS.length];
         h.set(d.subarray(o, o + INSTANCE_FLOATS), q);
-        h[q + 1] = e.y + e.lift; h[q + 3] = HORSE_SCALE * e.grow;
+        h[q + 1] = e.y + e.lift; h[q + 3] = HORSE_SCALE * e.grow; h[q + 4] = p.rideYaw;
         h[q + 6] = 0; h[q + 7] = 0; h[q + 8] = e.seed + 0.37;
         h[q + 12] = coat[0][0] / 255; h[q + 13] = coat[0][1] / 255; h[q + 14] = coat[0][2] / 255;
         h[q + 16] = coat[1][0] / 255; h[q + 17] = coat[1][1] / 255; h[q + 18] = coat[1][2] / 255; h[q + 19] = 0;
@@ -152,7 +152,7 @@ export class View {
       else if (e.kind === 'monster' && !e.dead) {
         const m = e as Monster;
         const quarry = s.bounty && s.bounty.monster === m.defId;
-        mm.add(m.x, m.z, quarry || m.boss ? 4 : 0, m.boss ? 4 : m.elite ? 3 : 2);
+        mm.add(m.x, m.z, quarry || m.boss || m.quarry ? 4 : 0, m.boss || m.quarry ? 4 : m.elite ? 3 : 2);
       } else if (e.kind === 'drop') mm.add(e.x, e.z, 3, e.rarity === 'legendary' || e.rarity === 'unique' ? 2.4 : 1.4);
     }
   }

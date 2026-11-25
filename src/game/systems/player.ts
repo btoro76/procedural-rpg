@@ -13,6 +13,9 @@ const CADENCE = 10.4;
 export const HORSE_SPEED = 1.7;
 export const SADDLE = 0.62;
 const STRIDE = 0.5;
+const ROAD_BONUS = 1.25;
+const TRAMPLE_SPEED = 0.6;
+const NPC_NEAR = 5, NPC_FAR = 7;
 const out = { x: 0, z: 0 };
 
 export function makePlayer(game: Game, char: Character): Player {
@@ -36,7 +39,7 @@ export function makePlayer(game: Game, char: Character): Player {
     intent: { moveX: 0, moveZ: 0 }, target: null, pursue: false, moveTo: null, queued: null,
     cast: null, cooldowns: {}, dash: null,
     calm: 10, potionCd: 0, evadeCd: 0, safe: true, respawn: 0, dirty: false, standStill: false,
-    mounted: true, rideWanted: true,
+    mounted: true, rideWanted: true, thrownT: 0, rideYaw: 2.6,
   };
   p.maxHp = build.derived.maxLife;
   p.hp = Math.min(p.maxHp, char.hp);
@@ -47,6 +50,8 @@ export function makePlayer(game: Game, char: Character): Player {
 export class PlayerSystem {
   private readonly game: Game;
   private stuck = 0;
+  private footT = 0;
+  private readonly trampled = new Map<number, number>();
   private siteName = '';
   private readonly when: Record<When, boolean> = { resourceHigh: false, resourceLow: false, healthy: true, injured: false, barrier: false };
 
@@ -78,13 +83,49 @@ export class PlayerSystem {
     if (g.world !== g.overworld) { g.bus.emit('log', { text: 'No room for the horse down here.' }); g.bus.emit('deny'); return; }
     if (p.dash) return;
     p.rideWanted = !p.rideWanted;
-    this.setMounted(p.rideWanted);
+    p.thrownT = 0;
+    this.setMounted(p.rideWanted && !this.onFoot());
+  }
+
+  /** A heavy blow throws the rider; the horse is back under them after 1 to 5 seconds. */
+  thrown(frac: number): void {
+    const g = this.game, p = g.player;
+    if (!p.mounted || p.dead) return;
+    p.thrownT = Math.min(5, Math.max(1, 1 + (frac - 0.1) / 0.3 * 4));
+    this.setMounted(false);
+    p.invuln = Math.max(p.invuln, 0.35);
+    g.bus.emit('miss', { target: p, text: 'Thrown!' });
+  }
+
+  /** On foot in towns, near townsfolk and below ground. */
+  private onFoot(): boolean {
+    const g = this.game, p = g.player;
+    if (g.world !== g.overworld || p.safe) return true;
+    return !!g.entities.nearest('npc', p.x, p.z, p.mounted ? NPC_NEAR : NPC_FAR);
+  }
+
+  private trample(dt: number, pace: number): void {
+    const g = this.game, p = g.player;
+    for (const [id, t] of this.trampled) if ((t - dt) <= 0) this.trampled.delete(id); else this.trampled.set(id, t - dt);
+    const top = GAME.PLAYER_SPEED * HORSE_SPEED;
+    if (pace < top * TRAMPLE_SPEED) return;
+    const fx = -Math.sin(p.rideYaw), fz = Math.cos(p.rideYaw);
+    for (const m of g.monsters) {
+      if (m.dead || this.trampled.has(m.id)) continue;
+      const dx = m.x - p.x, dz = m.z - p.z, d = Math.hypot(dx, dz);
+      if (d > p.radius + m.radius + 0.45 || dx * fx + dz * fz < 0) continue;
+      this.trampled.set(m.id, 0.9);
+      const k = Math.min(1, pace / top);
+      g.combat.heroHit(m, { skill: null, base: g.combat.weaponRoll() * (0.5 + 0.7 * k), element: 'physical', tags: ['melee'], fromX: p.x, fromZ: p.z, params: { knock: 6 + 6 * k }, noTriggers: true });
+      g.bus.emit('swing', { entity: p, radius: 1.2, heavy: true });
+    }
   }
 
   private setMounted(on: boolean): void {
     const g = this.game, p = g.player;
     if (p.mounted === on) return;
     p.mounted = on;
+    if (on) p.rideYaw = p.yaw;
     p.radius = on ? 0.5 : 0.36;
     g.bus.emit('mount', { on });
     g.fx.spawn('ring', p.x, p.y + 0.08, p.z, { size: 1.8, life: 0.5, color: [0.69, 0.5, 0.33], ground: true, alpha: 0.8 });
@@ -117,13 +158,16 @@ export class PlayerSystem {
       if (p.actionT >= 1) { p.action = 0; p.actionT = 0; }
     }
 
-    const outdoors = w === g.overworld;
-    if (p.mounted && !outdoors) this.setMounted(false);
-    else if (!p.mounted && outdoors && p.rideWanted && !p.dash) this.setMounted(true);
+    p.thrownT = Math.max(0, p.thrownT - dt);
+    const foot = this.onFoot();
+    this.footT = foot ? 0 : this.footT + dt;
+    if (p.mounted && foot) this.setMounted(false);
+    else if (!p.mounted && p.rideWanted && p.thrownT <= 0 && this.footT > 0.5 && !p.dash) this.setMounted(true);
+    const road = p.mounted && w === g.overworld && w.gen.roadDist(p.x, p.z) < 2.2;
 
     const d = p.build.derived;
     const wet = w.waterDepth(p.x, p.z) > 0.18;
-    const speed = GAME.PLAYER_SPEED * d.moveSpeed * (wet ? 0.62 : 1) * (p.mounted ? HORSE_SPEED : 1);
+    const speed = GAME.PLAYER_SPEED * d.moveSpeed * (wet ? 0.62 : 1) * (p.mounted ? HORSE_SPEED : 1) * (road ? ROAD_BONUS : 1);
     const held = g.status.stopped(p);
     let dx = 0, dz = 0, want = false;
     const tgt = p.target && !p.target.gone && !p.target.dead ? p.target : (p.target = null);
@@ -151,7 +195,8 @@ export class PlayerSystem {
       if (dist < 0.25) p.moveTo = null;
       else { const s = Math.min(speed, dist / Math.max(dt, 1e-4)); dx = (p.moveTo.x - p.x) / dist * s; dz = (p.moveTo.z - p.z) / dist * s; want = true; }
     }
-    if (p.cast && !p.dash && p.cast.t < p.cast.hitAt + 0.08) { dx *= 0.2; dz *= 0.2; }
+    const archer = p.mounted && p.char.classId === 'strider';
+    if (p.cast && !p.dash && !archer && p.cast.t < p.cast.hitAt + 0.08) { dx *= 0.2; dz *= 0.2; }
 
     const px = p.x, pz = p.z;
     if (want && dt > 0) {
@@ -160,6 +205,7 @@ export class PlayerSystem {
       const moved = Math.hypot(p.x - px, p.z - pz);
       if (!p.dash && moved < Math.hypot(dx, dz) * dt * 0.25) { this.stuck += dt; if (this.stuck > 0.6) { p.moveTo = null; this.stuck = 0; } } else this.stuck = 0;
       if (moved > 1e-4 && !p.cast) p.yaw = dampAngle(p.yaw, yawFromDir(p.x - px, p.z - pz), 16, dt);
+      if (moved > 1e-4) p.rideYaw = dampAngle(p.rideYaw, yawFromDir(p.x - px, p.z - pz), 10, dt);
       if (!p.dash) {
         const pace = moved / Math.max(dt, 1e-4);
         const before = p.walk;
@@ -169,6 +215,8 @@ export class PlayerSystem {
       }
     }
     const movedNow = Math.hypot(p.x - px, p.z - pz) / Math.max(dt, 1e-4);
+    if (movedNow < 0.2) p.rideYaw = dampAngle(p.rideYaw, p.yaw, 4, dt);
+    if (p.mounted && !p.dash) this.trample(dt, movedNow);
     p.move = damp(p.move, Math.min(1, movedNow / (GAME.PLAYER_SPEED * (p.mounted ? 1.2 : 0.8))), 14, dt);
     if (!p.dash?.leap) p.y = damp(p.y, w.surface(p.x, p.z) - (wet ? 0.12 : 0), 22, dt);
 
