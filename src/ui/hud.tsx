@@ -290,12 +290,14 @@ function Fps() {
 export function Hud() {
   ui.frame.value;
   useCaptions();
+  const upright = getGame().touch && innerHeight >= innerWidth;
   return (
     <>
-      <div class="hud-col hud-left"><Status /><Log /></div>
+      <div class="hud-col hud-left"><Status />{!upright && <Log />}</div>
       <div class="hud-col hud-center"><Target /><Toast /></div>
-      <div class="hud-col hud-right"><Compass /><Tracker /><Fps /></div>
-      <div class="hud-dock"><GuidePlate /><Prompt /><div class="hud-row"><Hotbar /><Menu /></div></div>
+      <div class="hud-col hud-right"><Compass />{!upright && <Tracker />}<Fps /></div>
+      {upright && <div class="hud-notes"><Tracker /><GuidePlate /><Log /><Prompt /></div>}
+      <div class="hud-dock">{!upright && <GuidePlate />}{!upright && <Prompt />}<div class="hud-row"><Hotbar /><Menu /></div></div>
       <Threats />
       <GuideArrow />
     </>
