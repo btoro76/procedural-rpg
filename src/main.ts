@@ -94,7 +94,7 @@ try {
       game.camera.portrait = true;
       const W = innerWidth, H = innerHeight, cardRight = Math.min(64, Math.max(16, W * 0.04)) + Math.min(540, W - 32);
       const off = W >= 760 ? ((cardRight + W) / 2 - W / 2) / (W / 2) : 0;
-      game.camera.shift = off * distance * Math.tan((17 * Math.PI) / 180) * (W / H);
+      game.camera.shift = off * distance * Math.tan(game.camera.fov / 2) * (W / H);
       previewing = true;
       cheer = 1.4;
     },

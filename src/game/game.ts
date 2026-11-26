@@ -255,7 +255,8 @@ export class Game {
     this.look.hurt = Math.max(floor, this.look.hurt - real * 2.2);
     this.look.fade = damp(this.look.fade, this.look.fadeGoal, 3, real);
 
-    this.renderer.worldTex.update(p.x, p.z, 2);
+    const lead = p.move * (p.mounted ? 70 : 40);
+    this.renderer.worldTex.update(p.x, p.z, 6, 5, -Math.sin(p.rideYaw) * lead, Math.cos(p.rideYaw) * lead);
     w.prune(p.x, p.z);
     this.camera.still = this.reducedMotion;
     this.camera.update(real, [p.x, p.y + 1.0, p.z], this.renderer.size.cssW / this.renderer.size.cssH, (x: number, z: number) => w.surface(x, z));

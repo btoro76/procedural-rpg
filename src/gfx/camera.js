@@ -32,6 +32,10 @@ export class Camera {
 
   update(dt, target, aspect, groundAt) {
     this.aspect = aspect;
+    // Narrow screens keep a usable side-to-side view instead of a slot.
+    const hMin = Math.tan(RENDER.MIN_HFOV * Math.PI / 360) / Math.max(aspect, 0.2);
+    const fovY = Math.max(RENDER.FOV * Math.PI / 180, 2 * Math.atan(hMin));
+    this.fov = Math.min(fovY, RENDER.MAX_VFOV * Math.PI / 180);
     this.yaw = dampAngle(this.yaw, this.goal.yaw, 12, dt);
     this.pitch = damp(this.pitch, this.goal.pitch, 12, dt);
     this.distance = damp(this.distance, this.goal.distance, 8, dt);

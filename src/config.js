@@ -1,15 +1,17 @@
 export const WORLD = {
-  TEX: 256,
+  TEX: 384,
   CHUNK: 32,
   CELL: 4,
   SEA: 0,
   PROP_HMAX: 9.5,
-  VIEW: 108,
+  VIEW: 164,
   ROAD_L: 256,
 };
 
 export const RENDER = {
-  FOV: 34,
+  FOV: 40,
+  MIN_HFOV: 44,
+  MAX_VFOV: 70,
   SCALE_MIN: 0.45,
   SCALE_MAX: 1.5,
   SCALE_START: 0.8, SCALE_LITE: 0.62,

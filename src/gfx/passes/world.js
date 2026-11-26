@@ -184,8 +184,8 @@ void main() {
 `;
 
 export const QUALITY = {
-  high: { MARCH_STEPS: 120, SHADOW_STEPS: 28 },
-  low: { MARCH_STEPS: 84, SHADOW_STEPS: 12 },
+  high: { MARCH_STEPS: 150, SHADOW_STEPS: 28 },
+  low: { MARCH_STEPS: 104, SHADOW_STEPS: 12 },
 };
 
 export class WorldPass {

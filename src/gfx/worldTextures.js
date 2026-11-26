@@ -26,7 +26,12 @@ export class WorldTextures {
     this.slots.fill(null);
   }
 
-  update(x, z, budget = 2) {
+  /**
+   * Upload missing chunks nearest first, favouring the way the hero is heading (ax, az).
+   * Stops after `budget` chunks or `ms` milliseconds, whichever comes first (always at least one).
+   */
+  update(x, z, budget = 2, ms = Infinity, ax = 0, az = 0) {
+    const t0 = performance.now();
     const pcx = Math.floor(x / N + 0.5), pcz = Math.floor(z / N + 0.5);
     const missing = this.pending;
     missing.length = 0;
@@ -35,18 +40,20 @@ export class WorldTextures {
       const si = ((cz % S + S) % S) * S + ((cx % S + S) % S);
       const slot = this.slots[si];
       if (slot && slot.cx === cx && slot.cz === cz) { if (slot.maxH > maxY) maxY = slot.maxH; continue; }
-      missing.push({ cx, cz, si, d: Math.hypot(cx + 0.5 - x / N, cz + 0.5 - z / N) });
+      missing.push({ cx, cz, si, d: Math.hypot(cx + 0.5 - (x + ax) / N, cz + 0.5 - (z + az) / N) });
     }
     missing.sort((a, b) => a.d - b.d);
     const n = Math.min(budget, missing.length);
-    for (let i = 0; i < n; i++) {
+    let i = 0;
+    for (; i < n; i++) {
+      if (i > 0 && performance.now() - t0 > ms) break;
       const m = missing[i];
       const chunk = this.world.chunk(m.cx, m.cz);
       this.upload(chunk, m.si);
       if (chunk.maxH > maxY) maxY = chunk.maxH;
     }
     this.maxY = maxY + 0.5;
-    return missing.length - n;
+    return missing.length - i;
   }
 
   refresh(cx, cz) {

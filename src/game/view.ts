@@ -14,7 +14,7 @@ const COATS: [number, number, number][][] = [
   [[160, 96, 58], [196, 148, 52], [62, 48, 44]],
 ];
 
-const DRAW_RANGE = 78;
+const DRAW_RANGE = 96;
 
 interface Batch { data: Float32Array; count: number }
 interface Light { x: number; y: number; z: number; r: number; k: number; d?: number }

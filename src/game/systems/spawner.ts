@@ -6,7 +6,7 @@ import { ELITE_AFFIX_IDS, MONSTERS, RANK_SCALE, scaleMonster } from '../content/
 import { levelAt } from '../rules/stats';
 import { Combat } from './combat';
 
-const NEAR = 26, FAR = 58, DESPAWN = 82;
+const NEAR = 26, FAR = 58, DESPAWN = 100;
 const NIGHT_ELDERS = 0.08;
 
 const NPC_LOOKS: Record<NpcRole, { extra: number; colors: [number, number, number][]; title: string }> = {
